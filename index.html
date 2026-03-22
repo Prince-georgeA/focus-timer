@@ -200,20 +200,22 @@
     .goalTrack { width:100%; height:3px; background:var(--surface2); border-radius:2px; overflow:hidden; }
     .goalFill  { height:100%; background:var(--accent); border-radius:2px; transition:width .6s cubic-bezier(.4,0,.2,1); box-shadow:0 0 6px var(--accent-glow); }
 
-    .infoRow { display:flex; gap:12px; margin-bottom:12px; flex-shrink:0; width:100%; }
+    .infoRow { display:flex; gap:12px; margin-bottom:12px; flex-shrink:0; width:100%; align-items:stretch; }
     .chip {
-      flex:1; display:flex; flex-direction:column; align-items:center; gap:3px;
+      flex:1; display:flex; flex-direction:column; align-items:center;
+      justify-content:center; gap:3px;
       padding:12px 8px; background:var(--surface); border:1px solid var(--border);
       border-radius:var(--r); box-shadow:0 2px 8px var(--shadow);
     }
     .chipVal { font-size:22px; font-weight:700; color:var(--text); }
     .chipLbl { font-size:9px; letter-spacing:1.5px; text-transform:uppercase; color:var(--text3); }
-    .chip--editable { padding:7px 4px 5px; }
+    /* Editable chip: same padding as regular chip, buttons sit inside */
+    .chip--editable { padding:10px 6px; }
     .chipEditRow {
       display:flex; align-items:center; justify-content:center;
-      gap:5px; width:100%;
+      gap:6px; width:100%;
     }
-    .chip--editable .chipVal { min-width:22px; text-align:center; }
+    .chip--editable .chipVal { min-width:26px; text-align:center; }
     .chipEditBtn {
       width:22px; height:22px; border-radius:7px; border:1px solid var(--border);
       background:var(--surface2); color:var(--text2); font-size:15px; font-weight:700;
@@ -1125,20 +1127,37 @@ function updateAccent(){
 function updatePhaseLabel(){ document.getElementById('phaseLabel').textContent={pomodoro:'FOCUS TIME',shortBreak:'SHORT BREAK',longBreak:'LONG BREAK'}[state.phase]||'FOCUS TIME'; }
 
 function renderSessionDots(){
-  const row=document.getElementById('sessionRow'); row.innerHTML='';
-  for(let i=0;i<settings.pomodorosPerCycle;i++){
-    if(i>0){ const s=document.createElement('div'); s.className='sSep'; row.appendChild(s); }
-    const d=document.createElement('div'); d.className='sDot';
-    if(i<state.cycleCount) d.classList.add('done');
-    else if(i===state.cycleCount && state.phase==='pomodoro') d.classList.add('current');
+  const row  = document.getElementById('sessionRow');
+  row.innerHTML = '';
+
+  const done  = history[todayKey()] || 0;   // completed today
+  const goal  = settings.dailyGoal;         // daily target (default 8)
+  /* Show up to 10 dots max so they fit on screen */
+  const total = Math.min(goal, 10);
+
+  for(let i = 0; i < total; i++){
+    if(i > 0){
+      const sep = document.createElement('div');
+      sep.className = 'sSep';
+      row.appendChild(sep);
+    }
+    const d = document.createElement('div');
+    d.className = 'sDot';
+    if(i < done){
+      d.classList.add('done');              // completed
+    } else if(i === done && state.status === 'running' && state.phase === 'pomodoro'){
+      d.classList.add('current');           // in progress right now
+    }
     row.appendChild(d);
   }
-  const sep=document.createElement('div'); sep.className='sSep'; sep.style.width='10px';
-  const lb=document.createElement('div'); lb.className='sDot';
-  const lc=getPhaseColors().longBreak;
-  lb.style.background=lc.a; lb.style.opacity=state.phase==='longBreak'?'1':'.25';
-  if(state.phase==='longBreak') lb.style.boxShadow=`0 0 8px ${lc.g}`;
-  row.appendChild(sep); row.appendChild(lb);
+
+  /* If goal already exceeded, add a ✓ indicator instead */
+  if(done >= goal){
+    const tick = document.createElement('div');
+    tick.style.cssText = 'font-size:13px;margin-left:6px;color:var(--accent)';
+    tick.textContent = '✓';
+    row.appendChild(tick);
+  }
 }
 function renderInfoChips(){
   /* Session chip shows today's total count with +/- for correction */
@@ -1146,6 +1165,8 @@ function renderInfoChips(){
   if(sesEl) sesEl.textContent = history[todayKey()] || 0;
   const strEl = document.getElementById('infoStreak');
   if(strEl) strEl.textContent = getStreak() + '🔥';
+  /* Keep dots in sync with today's count */
+  renderSessionDots();
 }
 function renderGoalBar(){
   const cnt=history[todayKey()]||0, goal=settings.dailyGoal;
