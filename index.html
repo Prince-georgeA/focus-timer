@@ -980,6 +980,12 @@ function completePhase(silent=false){
   if(state.phase==='pomodoro'){ state.cycleCount++; recordPomo(); }
   saveState(); saveHistory(); renderAll();
   bgMusicStop();
+  /* FIX: Immediately tell iOS the session is paused and clear the scrub bar.
+     Without this, mediaSession.playbackState stays 'playing' and iOS
+     keeps extrapolating the old phase's position forward on the lock screen,
+     making the finished break timer appear to continue counting. */
+  updatePlaybackState();
+  try{ if('mediaSession' in navigator) navigator.mediaSession.setPositionState({}); }catch(e){}
   if(!silent){ playNotif(); sendPush(); showDoneOverlay(); spawnConfetti(); }
   else{ advancePhase(); updateTimerDisplay(); updateControlUI(); }
 }
