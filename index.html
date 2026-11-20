@@ -616,7 +616,7 @@
         <div class="sRow"><div class="dataBtns"><button class="fileBtn" onclick="exportData()">Export JSON</button><button class="fileBtn" onclick="importData()">Import JSON</button></div></div>
       </div>
       <button class="applyBtn" onclick="applySettings()">Apply &amp; save</button>
-      <div class="sSub" id="buildStamp" style="text-align:center;margin:-10px 0 22px;opacity:.6">Build 2026-11-20 · audio-v12</div>
+      <div class="sSub" id="buildStamp" style="text-align:center;margin:-10px 0 22px;opacity:.6">Build 2026-11-20 · audio-v13</div>
     </div>
   </div>
 </div>
@@ -694,7 +694,7 @@ const DEF_STATE = {
 };
 
 let settings={...DEF_SETTINGS}, state={...DEF_STATE}, history={};
-const BUILD_NUM = 12;                                // bump on every release; shown in Settings and used for the update check
+const BUILD_NUM = 13;                                // bump on every release; shown in Settings and used for the update check
 const _ls = { meta:0, pos:0, err:'', last:'' };   // lock-screen update counters (shown in Settings)
 let audioCtx=null, tickId=null, silentNode=null, silentAudioEl=null, mediaHeartbeat=null;
 let bgAudio=null;  // background music <audio> element (see CUSTOM AUDIO)
@@ -1411,7 +1411,7 @@ function isIOS(){
 /* Is any custom audio going to play? (If not, leave iOS's own audio-session handling alone, like the original app.) */
 function customAudioInUse(){
   if(!customItems.length) return false;
-  if(settings.customSoundMode === 'background') return settings.widgetMode === 'music';
+  if(settings.customSoundMode === 'background') return settings.widgetMode === 'music' || (settings.widgetMode === 'both' && !webMusic());
   return settings.selectedSound === 'custom';
 }
 function setPlaybackSession(force){
@@ -1967,12 +1967,27 @@ function playSoft(v=.7){ const c=audioCtx,t=c.currentTime,o=c.createOscillator()
    iPhone lets only ONE media element play at a time, so the lock-screen widget (the silent clip element) and
    a music element can't coexist. Here the silent clip keeps the widget, and the music is decoded and played
    through Web Audio instead — a different route that does not compete for that single slot. */
-const WM_MAX_BYTES = 80 * 1024 * 1024;
+const WM_MAX_BYTES = 40 * 1024 * 1024, WM_MAX_SEC = 25 * 60;   // decoded audio costs ~21 MB per minute of RAM
+function wmItemOK(it){ return it.size <= WM_MAX_BYTES && !(it._dur > WM_MAX_SEC); }
+function wmProbe(){        // read each file's length (metadata only — nothing plays)
+  customItems.forEach(function(it){
+    if(it._durP || !it.url) return;
+    it._durP = new Promise(function(res){
+      try{
+        const a = new Audio(); a.preload = 'metadata';
+        const done = function(){ if(isFinite(a.duration)) it._dur = a.duration; a.onloadedmetadata = a.onerror = null; a.removeAttribute('src'); res(); };
+        a.onloadedmetadata = done; a.onerror = function(){ res(); }; a.src = it.url;
+        setTimeout(res, 4000);
+      }catch(e){ res(); }
+    });
+  });
+}
 const _wm = { src:null, gain:null, t0:0, offset:0, tok:0, busy:false };
-function webMusic(){ return settings.customSoundMode === 'background' && settings.widgetMode === 'both'; }
+/* "Timer + music" needs the songs decoded in memory; long files can't be, so they play as normal music instead. */
+function webMusic(){ return settings.customSoundMode === 'background' && settings.widgetMode === 'both' && customItems.every(wmItemOK); }
 function wmDecode(it){
   if(it._mbufP) return it._mbufP;
-  if(it.size > WM_MAX_BYTES) return (it._mbufP = Promise.reject(new Error('file is too big for this mode (' + Math.round(it.size/1048576) + ' MB)')));
+  if(it.size > WM_MAX_BYTES) return (it._mbufP = Promise.reject(new Error('file is too big (' + Math.round(it.size/1048576) + ' MB)')));
   it._mbufP = readFileBuffer(it.blob).then(function(ab){
     return new Promise(function(res, rej){
       const p = audioCtx.decodeAudioData(ab, res, rej);
@@ -2272,7 +2287,7 @@ function resumeSilentClip(){
 /* ── Activate: called when timer starts ────────────────────────── */
 /* While focus music is playing, the music itself keeps the audio session (and lock-screen widget) alive.
    A second looping element would make iOS pause the music, so the silent clip is not used then. */
-function musicOwnsSession(){ return bgWanted() && state.phase === 'pomodoro' && settings.widgetMode === 'music'; }
+function musicOwnsSession(){ return bgWanted() && state.phase === 'pomodoro' && (settings.widgetMode === 'music' || (settings.widgetMode === 'both' && !webMusic())); }
 let _metaPending = false;
 function applyLockScreenNow(){
   if(!settings.lockScreen || state.status !== 'running') return;
@@ -3179,6 +3194,8 @@ function setWidgetMode(mode){
   saveSettings();
   renderSoundModeUI();
   const m = settings.widgetMode;
+  wmProbe();
+  if(m === 'both' && !webMusic()) showToast('Your audio file is too long for Timer + music (max about 25 min / 40 MB) — it will play as normal music instead', 7000);
   if(state.status === 'running' && state.phase === 'pomodoro'){
     bgMusicStop();                                  // whichever engine was playing
     _bgFailed = false;
@@ -3218,10 +3235,12 @@ function renderSoundModeUI(){
   const wRow = document.getElementById('widgetRow'), wSel = document.getElementById('widgetModeSelect'), wDesc = document.getElementById('widgetDesc');
   if(wRow) wRow.style.display = mode === 'background' ? 'flex' : 'none';
   if(wSel) wSel.value = (settings.widgetMode === 'timer' || settings.widgetMode === 'both') ? settings.widgetMode : 'music';
+  wmProbe();
   if(wDesc) wDesc.textContent = settings.widgetMode === 'timer'
     ? 'Lock screen & Dynamic Island show the minutes icon and countdown. Music stays off.'
     : settings.widgetMode === 'both'
-    ? 'Minutes icon and countdown on the lock screen, with your music playing too (experimental).'
+    ? (webMusic() ? 'Minutes icon and countdown on the lock screen, with your music playing too (experimental).'
+                  : 'Your audio is longer than 25 min / 40 MB, so it plays as normal music (the lock screen may show the song). Use a shorter file for the timer widget.')
     : 'Music plays; the lock screen shows your song instead of the timer.';
   if(bgVol){
     bgVol.value = settings.bgMusicVolume ?? 0.5;
