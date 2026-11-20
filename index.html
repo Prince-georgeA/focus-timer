@@ -493,12 +493,13 @@
           <select class="sSelect" id="widgetModeSelect" onchange="setWidgetMode(this.value)">
             <option value="music">Music — shows your song</option>
             <option value="timer">Timer — minutes &amp; countdown</option>
+            <option value="both">Timer + music (experimental)</option>
           </select>
         </div>
         <div id="bgMusicRow" class="sRow" style="display:none">
           <div class="sLabel" id="bgVolLabel">Music Volume</div>
           <input type="range" min="0" max="1" step="0.05" id="bgVolSlider"
-                 oninput="settings.bgMusicVolume=parseFloat(this.value);if(bgAudio)bgAudio.volume=settings.bgMusicVolume;saveSettings()">
+                 oninput="settings.bgMusicVolume=parseFloat(this.value);if(bgAudio)bgAudio.volume=settings.bgMusicVolume;wmSetVolume(settings.bgMusicVolume);saveSettings()">
         </div>
         <div id="customFileList"></div>
         <!-- Persistent file input — iOS requires element to be in DOM -->
@@ -615,7 +616,7 @@
         <div class="sRow"><div class="dataBtns"><button class="fileBtn" onclick="exportData()">Export JSON</button><button class="fileBtn" onclick="importData()">Import JSON</button></div></div>
       </div>
       <button class="applyBtn" onclick="applySettings()">Apply &amp; save</button>
-      <div class="sSub" id="buildStamp" style="text-align:center;margin:-10px 0 22px;opacity:.6">Build 2026-11-20 · audio-v10</div>
+      <div class="sSub" id="buildStamp" style="text-align:center;margin:-10px 0 22px;opacity:.6">Build 2026-11-20 · audio-v12</div>
     </div>
   </div>
 </div>
@@ -693,7 +694,7 @@ const DEF_STATE = {
 };
 
 let settings={...DEF_SETTINGS}, state={...DEF_STATE}, history={};
-const BUILD_NUM = 10;                                // bump on every release; shown in Settings and used for the update check
+const BUILD_NUM = 12;                                // bump on every release; shown in Settings and used for the update check
 const _ls = { meta:0, pos:0, err:'', last:'' };   // lock-screen update counters (shown in Settings)
 let audioCtx=null, tickId=null, silentNode=null, silentAudioEl=null, mediaHeartbeat=null;
 let bgAudio=null;  // background music <audio> element (see CUSTOM AUDIO)
@@ -1012,8 +1013,8 @@ function checkForUpdate(){
 function renderBuildTag(){
   const el = document.getElementById('buildTag'); if(!el) return;
   const clip = silentAudioEl && !silentAudioEl.paused ? 'on' : 'off';
-  const music = bgAudio && bgAudio._track && !bgAudio.paused ? 'on' : 'off';
-  const widget = settings.customSoundMode === 'background' ? (settings.widgetMode === 'timer' ? 'timer' : 'music') : 'alert';
+  const music = (_wm.src || (bgAudio && bgAudio._track && !bgAudio.paused)) ? 'on' : (_wm.busy ? 'loading' : 'off');
+  const widget = settings.customSoundMode === 'background' ? (settings.widgetMode === 'timer' ? 'timer' : settings.widgetMode === 'both' ? 'both' : 'music') : 'alert';
   const t = 'v' + BUILD_NUM + ' · lock screen ' + (settings.lockScreen ? 'on' : 'OFF') + ' · widget ' + widget
           + ' · clip ' + clip + ' · music ' + music + ' · sent ' + _ls.meta + '/' + _ls.pos + (_ls.err ? ' · ' + _ls.err : '');
   if(el.textContent !== t) el.textContent = t;
@@ -1410,7 +1411,7 @@ function isIOS(){
 /* Is any custom audio going to play? (If not, leave iOS's own audio-session handling alone, like the original app.) */
 function customAudioInUse(){
   if(!customItems.length) return false;
-  if(settings.customSoundMode === 'background') return settings.widgetMode !== 'timer';
+  if(settings.customSoundMode === 'background') return settings.widgetMode === 'music';
   return settings.selectedSound === 'custom';
 }
 function setPlaybackSession(force){
@@ -1833,7 +1834,7 @@ function unlockEl(el){
         }
         done();
         /* the unlock clip briefly took iOS's single audio slot — hand it back to the lock-screen clip */
-        if(state.status === 'running' && !musicOwnsSession() && silentAudioEl && silentAudioEl.paused) silentAudioEl.play().catch(function(){});
+        if(state.status === 'running' && !musicOwnsSession() && silentAudioEl && silentAudioEl.paused) resumeSilentClip();
       }).catch(function(){ done(); });
     } else { el._unlocked = true; done(); }
   }catch(e){ done(); }
@@ -1962,6 +1963,72 @@ function playChime(v=.7){ const c=audioCtx,t=c.currentTime; [523,659,784,1047].f
 function playSoft(v=.7){ const c=audioCtx,t=c.currentTime,o=c.createOscillator(),g=c.createGain();o.connect(g);g.connect(c.destination);o.frequency.value=440;o.type='sine';g.gain.setValueAtTime(0,t);g.gain.linearRampToValueAtTime(v*.4,t+.25);g.gain.exponentialRampToValueAtTime(.0001,t+2.2);o.start(t);o.stop(t+2.2); }
 
 /* ═══ BACKGROUND MUSIC ═══ */
+/* ── Music through Web Audio ("Timer + music" widget mode) ─────────────────────────────────────────────
+   iPhone lets only ONE media element play at a time, so the lock-screen widget (the silent clip element) and
+   a music element can't coexist. Here the silent clip keeps the widget, and the music is decoded and played
+   through Web Audio instead — a different route that does not compete for that single slot. */
+const WM_MAX_BYTES = 80 * 1024 * 1024;
+const _wm = { src:null, gain:null, t0:0, offset:0, tok:0, busy:false };
+function webMusic(){ return settings.customSoundMode === 'background' && settings.widgetMode === 'both'; }
+function wmDecode(it){
+  if(it._mbufP) return it._mbufP;
+  if(it.size > WM_MAX_BYTES) return (it._mbufP = Promise.reject(new Error('file is too big for this mode (' + Math.round(it.size/1048576) + ' MB)')));
+  it._mbufP = readFileBuffer(it.blob).then(function(ab){
+    return new Promise(function(res, rej){
+      const p = audioCtx.decodeAudioData(ab, res, rej);
+      if(p && p.then) p.then(res, rej);
+    });
+  });
+  it._mbufP.catch(function(){ it._mbufP = null; });     // allow a retry later
+  return it._mbufP;
+}
+function wmHalt(){
+  const s = _wm.src; _wm.src = null;
+  if(s){ s.onended = null; try{ s.stop(); }catch(e){} try{ s.disconnect(); }catch(e){} }
+}
+function wmPause(){
+  if(_wm.src && audioCtx){
+    const it = customItems[bgIdx], d = it && it._mbuf ? it._mbuf.duration : 0;
+    _wm.offset = d ? ((audioCtx.currentTime - _wm.t0) % d) : 0;
+  }
+  wmHalt(); _wm.busy = false; ++_wm.tok;
+}
+function wmPlay(idx, offset){
+  if(!customItems.length) return;
+  ensureAudioCtx();
+  if(!audioCtx){ showToast('This browser has no Web Audio — use Music mode'); return; }
+  bgIdx = idx % customItems.length;
+  const it = customItems[bgIdx], tok = ++_wm.tok;
+  _bgIntent = true; _wm.busy = true; wmHalt();
+  wmDecode(it).then(function(buf){
+    if(tok !== _wm.tok || !_bgIntent) return;                      // paused / stopped / replaced while decoding
+    it._mbuf = buf; _wm.busy = false; bgFails = 0;
+    if(audioCtx.state !== 'running') audioCtx.resume().catch(function(){});
+    const src = audioCtx.createBufferSource(), g = audioCtx.createGain();
+    src.buffer = buf; src.loop = customItems.length === 1;
+    g.gain.value = settings.bgMusicVolume ?? 0.5;
+    src.connect(g); g.connect(audioCtx.destination);
+    const off = buf.duration ? ((offset || 0) % buf.duration) : 0;
+    _wm.src = src; _wm.gain = g; _wm.t0 = audioCtx.currentTime - off; _wm.offset = 0;
+    src.onended = function(){
+      if(_wm.src !== src) return;
+      _wm.src = null;
+      if(_bgIntent && state.status === 'running' && state.phase === 'pomodoro') wmPlay(bgIdx + 1, 0);
+    };
+    src.start(0, off);
+  }).catch(function(err){
+    if(tok !== _wm.tok) return;
+    _wm.busy = false;
+    _bgLastErr = ((err && (err.message || err.name)) || 'could not decode') + ' [' + Math.round(it.size/1048576) + ' MB ' + (it.type || '?') + ']';
+    console.warn('Web Audio music failed:', it.name, err);
+    if(++bgFails >= customItems.length){
+      _bgIntent = false; _bgFailed = true;
+      showToast('Music could not play in Timer + music mode — ' + _bgLastErr, 8000);
+    } else wmPlay(bgIdx + 1, 0);
+  });
+}
+function wmSetVolume(v){ if(_wm.gain) _wm.gain.gain.value = v; }
+
 function ensureBgAudio(){
   if(bgAudio) return bgAudio;
   bgAudio = document.createElement('audio');
@@ -2026,6 +2093,7 @@ function bgWanted(){
 function bgPlay(idx){
   const it = customItems[idx % customItems.length];
   if(!it) return;
+  if(webMusic()){ wmPlay(idx, 0); return; }
   ensureBgAudio();
   bgIdx = idx % customItems.length;
   _bgIntent = true;
@@ -2054,6 +2122,7 @@ function bgPlay(idx){
 function bgMusicStart(){
   if(!bgWanted()) return;
   _bgRecover = 0;
+  if(webMusic()){ if(!customReady){ bgPendingStart = true; return; } wmPlay(bgIdx, _wm.offset); return; }
   ensureBgAudio();
   if(!customReady){ bgPendingStart = true; return; }
   if(bgAudio._track){ bgMusicResume(); return; }                 // paused mid-track → continue it
@@ -2061,10 +2130,12 @@ function bgMusicStart(){
 }
 function bgMusicPause(){
   _bgIntent = false;
+  wmPause();
   if(bgAudio && !bgAudio.paused) bgAudio.pause();
 }
 function bgMusicResume(){
   if(!bgWanted()) return;
+  if(webMusic()){ if(!_wm.src && !_wm.busy) wmPlay(bgIdx, _wm.offset); return; }
   ensureBgAudio();
   if(!bgAudio._track){ bgMusicStart(); return; }
   _bgIntent = true;
@@ -2078,7 +2149,8 @@ function bgMusicResume(){
 function bgMusicStop(){
   _bgIntent = false;
   bgBlocked = false;
-  if(!bgAudio) return;
+  wmHalt(); _wm.offset = 0; _wm.busy = false; ++_wm.tok;
+  if(!bgAudio){ bgIdx = 0; bgFails = 0; return; }
   bgAudio.pause();
   bgAudio._track = null;
   bgAudio.removeAttribute('src');        // NOT src='' — that fires a bogus error event
@@ -2177,7 +2249,7 @@ function prewarmAudio(){
       if(state.status !== 'running' || musicOwnsSession()) return;
       setTimeout(function(){
         if(state.status === 'running' && silentAudioEl.paused && !musicOwnsSession()
-           && !(notifEl && !notifEl.paused) && !(bgAudio && !bgAudio.paused)) silentAudioEl.play().catch(function(){});
+           && !(notifEl && !notifEl.paused) && !(bgAudio && !bgAudio.paused)) resumeSilentClip();
       }, 500);
     });
   }
@@ -2185,10 +2257,22 @@ function prewarmAudio(){
 
 /* Audio unlock listeners live with the custom-audio engine (unlockAudio). */
 
+/* Restart the lock-screen clip after iOS (or something else) paused it. When the audio session is interrupted iOS
+   drops the Now Playing info, so the title/icon/countdown are published again once the clip is playing. */
+function resumeSilentClip(){
+  if(!silentAudioEl || state.status !== 'running' || musicOwnsSession()) return;
+  var p = silentAudioEl.play();
+  var republish = function(){
+    if(state.status !== 'running' || musicOwnsSession()) return;
+    setMediaMetadata(); updatePlaybackState(); updatePositionState(true);
+  };
+  if(p && p.then) p.then(republish).catch(function(){});
+}
+
 /* ── Activate: called when timer starts ────────────────────────── */
 /* While focus music is playing, the music itself keeps the audio session (and lock-screen widget) alive.
    A second looping element would make iOS pause the music, so the silent clip is not used then. */
-function musicOwnsSession(){ return bgWanted() && state.phase === 'pomodoro'; }
+function musicOwnsSession(){ return bgWanted() && state.phase === 'pomodoro' && settings.widgetMode === 'music'; }
 let _metaPending = false;
 function applyLockScreenNow(){
   if(!settings.lockScreen || state.status !== 'running') return;
@@ -2280,7 +2364,7 @@ function _startHeartbeat(){
        Recreating MediaMetadata during playback resets setPositionState. */
     updatePositionState();
     if(silentAudioEl && silentAudioEl.paused && !musicOwnsSession()){
-      silentAudioEl.play().catch(function(){});
+      resumeSilentClip();
     }
     if(audioCtx && audioCtx.state === 'suspended'){
       audioCtx.resume().catch(function(){});
@@ -2556,13 +2640,7 @@ function onVis(){
   // Restart audio on screen unlock — do NOT reassign MediaMetadata
   if(state.status === 'running' && silentAudioEl){
     if(silentAudioEl.paused){
-      silentAudioEl.play().then(function(){
-        /* Audio restarted — update position (metadata already set at phase start) */
-        updatePositionState();
-        updatePlaybackState();
-      }).catch(function(){
-        updatePositionState();
-      });
+      if(musicOwnsSession()) updatePositionState(true); else resumeSilentClip();   // republishes title + countdown
     } else {
       /* Audio still playing — just sync position */
       updatePositionState();
@@ -3097,14 +3175,18 @@ function importData(){
 
 
 function setWidgetMode(mode){
-  settings.widgetMode = (mode === 'timer') ? 'timer' : 'music';
+  settings.widgetMode = (mode === 'timer' || mode === 'both') ? mode : 'music';
   saveSettings();
   renderSoundModeUI();
+  const m = settings.widgetMode;
   if(state.status === 'running' && state.phase === 'pomodoro'){
-    if(settings.widgetMode === 'timer'){ bgMusicStop(); activateSilentAudio(); showToast('Timer widget on — music is off'); }
-    else { _bgFailed = false; bgMusicStart(); showToast('Music on'); }
+    bgMusicStop();                                  // whichever engine was playing
+    _bgFailed = false;
+    if(m === 'timer'){ activateSilentAudio(); showToast('Timer widget on — music is off'); }
+    else if(m === 'both'){ activateSilentAudio(); bgMusicStart(); showToast('Timer widget + music'); }
+    else { bgMusicStart(); showToast('Music on'); }
   }else{
-    showToast(settings.widgetMode === 'timer' ? 'Timer widget — music stays off' : 'Music — plays when the timer runs');
+    showToast(m === 'timer' ? 'Timer widget — music stays off' : m === 'both' ? 'Timer widget + music' : 'Music — plays when the timer runs');
   }
 }
 
@@ -3135,9 +3217,11 @@ function renderSoundModeUI(){
   if(bgRow) bgRow.style.display = (mode === 'background' && settings.widgetMode !== 'timer') ? 'flex' : 'none';
   const wRow = document.getElementById('widgetRow'), wSel = document.getElementById('widgetModeSelect'), wDesc = document.getElementById('widgetDesc');
   if(wRow) wRow.style.display = mode === 'background' ? 'flex' : 'none';
-  if(wSel) wSel.value = settings.widgetMode === 'timer' ? 'timer' : 'music';
+  if(wSel) wSel.value = (settings.widgetMode === 'timer' || settings.widgetMode === 'both') ? settings.widgetMode : 'music';
   if(wDesc) wDesc.textContent = settings.widgetMode === 'timer'
     ? 'Lock screen & Dynamic Island show the minutes icon and countdown. Music stays off.'
+    : settings.widgetMode === 'both'
+    ? 'Minutes icon and countdown on the lock screen, with your music playing too (experimental).'
     : 'Music plays; the lock screen shows your song instead of the timer.';
   if(bgVol){
     bgVol.value = settings.bgMusicVolume ?? 0.5;
