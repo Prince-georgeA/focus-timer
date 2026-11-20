@@ -1,0 +1,3177 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Focus">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="theme-color" id="themeColorMeta" content="#07091a">
+  <title>Focus — Pomodoro Timer</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+
+    /* ══════════════════════════════════════
+       DARK MODE TOKENS
+    ══════════════════════════════════════ */
+    :root, [data-theme="dark"] {
+      --bg:          #07091a;
+      --surface:     #0d1028;
+      --surface2:    #141830;
+      --surface3:    #1a2040;
+      --border:      #1e2650;
+      --border2:     #252e60;
+      --accent:      #ff6b6b;
+      --accent-dim:  rgba(255,107,107,0.15);
+      --accent-glow: rgba(255,107,107,0.35);
+      --text:        #eaedf8;
+      --text2:       #7b82b0;
+      --text3:       #3d4470;
+      --shadow:      rgba(0,0,0,0.45);
+      --font-num:    'Plus Jakarta Sans', sans-serif;
+      --font-ui:     'Plus Jakarta Sans', sans-serif;
+      --r: 14px;
+    }
+
+    /* ══════════════════════════════════════
+       LIGHT MODE TOKENS — Coolors palette
+       #ccd5ae  sage green
+       #e9edc9  parchment
+       #fefae0  cream (background)
+       #faedcd  warm peach (surface)
+       #d4a373  caramel (accent)
+    ══════════════════════════════════════ */
+    [data-theme="light"] {
+      --bg:          #fefae0;
+      --surface:     #faedcd;
+      --surface2:    #f0e0b8;
+      --surface3:    #e9edc9;
+      --border:      rgba(180,130,70,0.25);
+      --border2:     rgba(180,130,70,0.50);
+      --accent:      #b07030;
+      --accent-dim:  rgba(176,112,48,0.14);
+      --accent-glow: rgba(176,112,48,0.32);
+      --text:        #2c1a07;
+      --text2:       #7a5530;
+      --text3:       #b09070;
+      --shadow:      rgba(100,60,20,0.12);
+      --font-num:    'Plus Jakarta Sans', sans-serif;
+      --font-ui:     'Plus Jakarta Sans', sans-serif;
+      --r: 14px;
+    }
+
+    /* smooth theme switch */
+    body, #app, .tab, .sSection, .sHead, .sRow, .tog, .sSelect, .sInput,
+    #toast, #doneOverlay, .doneBtn {
+      transition: background-color .3s ease, border-color .3s ease, color .2s ease;
+    }
+
+    html { height: 100%; }
+    body {
+      font-family: var(--font-ui);
+      background: var(--bg);
+      color: var(--text);
+      height: 100%; min-height: 100vh; min-height: 100dvh;
+      overflow: hidden;
+      user-select: none; -webkit-user-select: none;
+    }
+
+    /* ─── SHELL ─── */
+    #app {
+      position:relative; z-index:1;
+      width:100%; max-width:460px; height:100vh; height:100dvh;
+      margin:0 auto; display:flex; flex-direction:column;
+      padding:0 18px;
+      padding-top:env(safe-area-inset-top);
+      padding-bottom:env(safe-area-inset-bottom);
+    }
+    .srOnly { position:absolute; width:1px; height:1px; overflow:hidden; clip:rect(0 0 0 0); white-space:nowrap; }
+    :focus-visible { outline:2px solid var(--accent); outline-offset:2px; border-radius:6px; }
+    button { font-family:inherit; }
+
+    /* ─── TABS ─── */
+    .tabs { display:flex; margin:16px 0 0; border-bottom:1px solid var(--border); flex-shrink:0; }
+    .tab {
+      flex:1; padding:12px 0; text-align:center; font-size:12px; font-weight:500;
+      letter-spacing:1.5px; text-transform:uppercase; color:var(--text2);
+      background:none; border:none; border-bottom:2px solid transparent; margin-bottom:-1px;
+      cursor:pointer; border-radius:0;
+    }
+    .tab:hover { color:var(--text); }
+    .tab.active { color:var(--text); border-bottom-color:var(--accent); }
+
+    /* ─── VIEWS ─── */
+    .view { display:none; flex:1; flex-direction:column; overflow:hidden; min-height:0; }
+    .view.active { display:flex; }
+    .scrollable { overflow-y:auto; overflow-x:hidden; flex:1; padding-bottom:8px; }
+    #settingsView .scrollable { padding-top:26px; }
+    .scrollable::-webkit-scrollbar { width:3px; }
+    .scrollable::-webkit-scrollbar-thumb { background:var(--border); border-radius:2px; }
+
+    /* ══════════════════════════════════════
+       TIMER VIEW
+    ══════════════════════════════════════ */
+    #timerView { align-items:center; }
+    .timerMain { flex:1; min-height:0; width:100%; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:clamp(22px,5vh,44px); }
+    .quoteWrap { flex-shrink:0; text-align:center; padding:8px 16px 18px; max-width:340px; }
+    .quoteText { font-size:12px; color:var(--text2); font-style:italic; line-height:1.6; transition:opacity .5s; }
+
+    .timerWrap {
+      position:relative; flex-shrink:0;
+      width:min(300px,78vw); height:min(300px,78vw);
+      display:flex; align-items:center; justify-content:center;
+    }
+    .timerSvg { position:absolute; inset:0; width:100%; height:100%; transform:rotate(-90deg); overflow:visible; }
+    .rBg   { fill:none; stroke:var(--border); stroke-width:2; }
+    .rProg { fill:none; stroke:var(--accent); stroke-width:3; stroke-linecap:round; transition:stroke-dashoffset .6s linear; }
+
+    .timerInner { display:flex; flex-direction:column; align-items:center; z-index:1; }
+    .timerDigits { font-family:var(--font-ui); font-weight:300; font-size:clamp(64px,19vw,84px); line-height:1; letter-spacing:-1px; font-variant-numeric:tabular-nums; color:var(--text); }
+    .timerSub { font-size:11px; font-weight:500; letter-spacing:2px; color:var(--text2); text-transform:uppercase; margin-top:12px; }
+    .todayLine { font-size:12px; color:var(--text2); letter-spacing:.5px; font-variant-numeric:tabular-nums; margin-top:-8px; flex-shrink:0; }
+
+    .controls { display:flex; align-items:center; justify-content:center; gap:28px; flex-shrink:0; }
+    .ctrlBtn {
+      width:44px; height:44px; border-radius:50%; background:none; border:none; color:var(--text2);
+      display:flex; align-items:center; justify-content:center; cursor:pointer;
+      transition:color .18s, transform .12s;
+    }
+    .ctrlBtn svg { width:20px; height:20px; }
+    .ctrlBtn:hover  { color:var(--text); }
+    .ctrlBtn:active { transform:scale(.9); }
+    .mainBtn {
+      width:68px; height:68px; border-radius:50%; background:var(--accent); border:none;
+      display:flex; align-items:center; justify-content:center; cursor:pointer;
+      transition:transform .15s, opacity .15s;
+    }
+    .mainBtn svg { width:26px; height:26px; }
+    .mainBtn:hover  { opacity:.9; }
+    .mainBtn:active { transform:scale(.94); }
+
+    /* ══════════════════════════════════════
+       STATS VIEW
+    ══════════════════════════════════════ */
+    .statPair { display:grid; grid-template-columns:1fr 1fr; gap:12px; padding:32px 0 28px; border-bottom:1px solid var(--border); }
+    .statBlock { display:flex; flex-direction:column; align-items:center; gap:8px; }
+    .statNum { font-weight:300; font-size:56px; line-height:1; font-variant-numeric:tabular-nums; color:var(--text); }
+    .statLbl { font-size:11px; font-weight:500; letter-spacing:2px; text-transform:uppercase; color:var(--text2); }
+    .adjRow  { display:flex; gap:10px; margin-top:2px; }
+    .adjBtn  { width:32px; height:32px; border-radius:50%; border:1px solid var(--border); background:none; color:var(--text2); font-size:16px; line-height:1; cursor:pointer; display:flex; align-items:center; justify-content:center; padding:0; transition:color .15s, border-color .15s, transform .1s; }
+    .adjBtn:hover  { color:var(--accent); border-color:var(--accent); }
+    .adjBtn:active { transform:scale(.88); }
+
+    .calBlock { padding-top:22px; }
+    .calNav   { display:flex; align-items:center; justify-content:space-between; margin-bottom:20px; }
+    .calTitle { font-size:13px; font-weight:500; color:var(--text2); }
+    .navBtn   { background:none; border:none; color:var(--text2); padding:6px 14px; cursor:pointer; font-size:20px; line-height:1; }
+    .navBtn:hover { color:var(--accent); }
+
+    .weekGrid { display:grid; grid-template-columns:repeat(7,1fr); gap:8px; }
+    .wCol { display:flex; flex-direction:column; align-items:center; gap:6px; }
+    .wDay { font-size:10px; color:var(--text2); letter-spacing:.5px; }
+    .wBarWrap { width:100%; height:80px; display:flex; align-items:flex-end; justify-content:center; border-bottom:1px solid var(--border); }
+    .wBar { width:40%; min-width:6px; border-radius:2px 2px 0 0; background:var(--accent); opacity:.4; min-height:2px; transition:height .5s ease; }
+    .wBar.today { opacity:1; }
+    .wCount { font-size:11px; color:var(--text2); font-variant-numeric:tabular-nums; }
+    .wDate  { font-size:10px; color:var(--text2); }
+    .wCol.today .wDate, .wCol.today .wDay { color:var(--accent); }
+
+    /* ══════════════════════════════════════
+       SETTINGS VIEW
+    ══════════════════════════════════════ */
+    .sSection { margin-bottom:30px; }
+    .sHead    { padding:0 0 8px; font-size:11px; font-weight:500; letter-spacing:2px; text-transform:uppercase; color:var(--text2); border-bottom:1px solid var(--border); }
+    .sRow     { padding:14px 0; display:flex; align-items:center; justify-content:space-between; border-bottom:1px solid var(--border); gap:12px; }
+    .sRow:last-child { border-bottom:none; }
+    .sLabel { font-size:14px; font-weight:400; color:var(--text); }
+    .sSub   { font-size:11px; color:var(--text2); margin-top:3px; }
+
+    .stepper { display:flex; align-items:center; gap:4px; flex-shrink:0; }
+    .stepBtn { width:34px; height:34px; border-radius:50%; display:flex; align-items:center; justify-content:center; cursor:pointer; color:var(--text2); font-size:16px; background:none; border:1px solid var(--border); font-family:var(--font-ui); padding:0; }
+    .stepBtn:hover { border-color:var(--accent); color:var(--accent); }
+    .stepVal { min-width:44px; text-align:center; font-size:14px; font-weight:400; color:var(--text); font-variant-numeric:tabular-nums; }
+
+    .tog { width:42px; height:23px; border-radius:12px; background:var(--surface2); border:1px solid var(--border); cursor:pointer; position:relative; flex-shrink:0; }
+    .tog::after { content:''; width:17px; height:17px; background:var(--text3); border-radius:50%; position:absolute; top:2px; left:2px; transition:all .3s; }
+    .tog.on { background:var(--accent); border-color:var(--accent); }
+    .tog.on::after { transform:translateX(19px); background:#fff; }
+    [data-theme="light"] .tog.on::after { background:#fefae0; }
+
+    .sSelect { background:var(--surface2); border:1px solid var(--border); color:var(--text); border-radius:8px; padding:6px 10px; font-family:var(--font-ui); font-size:12px; cursor:pointer; outline:none; flex-shrink:0; }
+    /* Sliders: big enough to grab with a finger; padding enlarges the hit area without a fat track */
+    input[type=range] { -webkit-appearance:none; appearance:none; width:140px; height:24px; padding:9px 0; box-sizing:border-box; border-radius:0; background:linear-gradient(to right, var(--accent) var(--pct,50%), rgba(128,128,128,.35) var(--pct,50%)); background-clip:content-box; outline:none; cursor:pointer; touch-action:manipulation; }
+    input[type=range]:disabled { opacity:.4; cursor:not-allowed; }
+    input[type=range]::-webkit-slider-runnable-track { height:6px; border-radius:3px; background:transparent; }
+    input[type=range]::-webkit-slider-thumb { -webkit-appearance:none; width:22px; height:22px; margin-top:-8px; border-radius:50%; background:var(--accent); border:2px solid var(--bg, #07091a); box-shadow:0 1px 4px rgba(0,0,0,.4); cursor:pointer; }
+    input[type=range]::-moz-range-track { height:6px; border-radius:3px; background:linear-gradient(to right, var(--accent) var(--pct,50%), rgba(128,128,128,.35) var(--pct,50%)); }
+    input[type=range]::-moz-range-thumb { width:18px; height:18px; border-radius:50%; background:var(--accent); border:2px solid var(--bg, #07091a); cursor:pointer; }
+    .fileBtn { padding:6px 12px; background:var(--surface2); border:1px solid var(--border); border-radius:8px; color:var(--text2); font-size:12px; font-family:var(--font-ui); cursor:pointer; white-space:nowrap; flex-shrink:0; }
+    .fileBtn:hover { border-color:var(--accent); color:var(--accent); }
+    .prevBtn { background:none; border:1px solid var(--border); border-radius:6px; color:var(--text3); padding:4px 8px; font-size:11px; cursor:pointer; flex-shrink:0; }
+    .prevBtn:hover { border-color:var(--accent); color:var(--accent); }
+    .customFiles { padding:8px 0; border-bottom:1px solid var(--border); }
+    .cFile { display:flex; align-items:center; justify-content:space-between; padding:3px 0; }
+    .cFileName { font-size:12px; color:var(--text); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    .cFileRm { cursor:pointer; color:var(--text2); font-size:13px; padding:4px 8px; flex-shrink:0; }
+    .cFileRm:hover { color:#cc3333; }
+
+    .applyBtn { width:100%; padding:14px; background:none; border:1px solid var(--accent); border-radius:var(--r); color:var(--accent); font-family:var(--font-ui); font-size:14px; font-weight:500; cursor:pointer; letter-spacing:.3px; margin-bottom:24px; }
+    .applyBtn:hover { background:var(--accent); color:#fff; }
+
+    .tipBox { background:var(--surface2); border:1px solid var(--border); border-radius:var(--r); padding:12px 14px; font-size:11px; color:var(--text2); line-height:1.8; }
+    .tipBox strong { color:var(--text); }
+    .lockNote { font-size:12px; color:var(--text2); line-height:1.7; margin-top:10px; }
+    .lockNote strong { color:var(--accent); }
+
+    /* ─── COMPLETION OVERLAY ─── */
+    #doneOverlay { position:fixed; inset:0; z-index:200; display:none; flex-direction:column; align-items:center; justify-content:center; gap:18px; padding:30px; backdrop-filter:blur(14px); -webkit-backdrop-filter:blur(14px); }
+    [data-theme="dark"]  #doneOverlay { background:rgba(7,9,26,.92); }
+    [data-theme="light"] #doneOverlay { background:rgba(254,250,224,.92); }
+    #doneOverlay.show { display:flex; animation:fadeUp .35s ease; }
+    @keyframes fadeUp { from{opacity:0;transform:translateY(20px)} to{opacity:1;transform:translateY(0)} }
+    .doneIcon  { display:none; }
+    .doneTitle { font-family:var(--font-num); font-size:32px; letter-spacing:4px; color:var(--accent); font-weight:300; text-align:center; }
+    .doneMsg   { font-size:14px; color:var(--text2); text-align:center; line-height:1.7; max-width:280px; }
+    .doneBtns  { display:flex; gap:12px; }
+    .doneBtn   { padding:11px 26px; border-radius:12px; font-family:var(--font-ui); font-size:13px; font-weight:700; cursor:pointer; letter-spacing:.3px; }
+    .doneBtnSec { background:var(--surface); border:1px solid var(--border); color:var(--text2); }
+    .doneBtnPri { background:var(--accent); border:none; color:#fff; }
+    .doneBtnPri:hover { transform:scale(1.03); }
+
+    #confetti { position:fixed; inset:0; pointer-events:none; z-index:199; overflow:hidden; }
+    .confettiPiece { position:absolute; border-radius:2px; animation:fall linear forwards; }
+    @keyframes fall { 0%{transform:translateY(-20px) rotate(0deg);opacity:1} 100%{transform:translateY(110vh) rotate(720deg);opacity:0} }
+
+    #toast { position:fixed; bottom:calc(24px + env(safe-area-inset-bottom)); left:50%; transform:translateX(-50%) translateY(10px); opacity:0; background:var(--surface2); border:1px solid var(--border2,var(--border)); border-radius:12px; padding:10px 18px; font-size:12px; font-weight:500; color:var(--text); z-index:300; white-space:normal; text-align:center; width:max-content; max-width:min(92vw,420px); line-height:1.4; pointer-events:none; box-shadow:0 4px 16px var(--shadow); }
+    #toast.show { opacity:1; transform:translateX(-50%) translateY(0); transition:all .3s; }
+
+    .svgIcon { width:17px; height:17px; fill:none; stroke:currentColor; stroke-width:2; stroke-linecap:round; stroke-linejoin:round; }
+
+    /* ─── NOTIFICATION MODAL ─── */
+    #notifModal {
+      position:fixed; inset:0; z-index:250; display:none;
+      align-items:flex-end; justify-content:center;
+      backdrop-filter:blur(8px); -webkit-backdrop-filter:blur(8px);
+      padding-bottom:env(safe-area-inset-bottom);
+    }
+    [data-theme="dark"]  #notifModal { background:rgba(7,9,26,.75); }
+    [data-theme="light"] #notifModal { background:rgba(254,250,224,.75); }
+    #notifModal.show { display:flex; }
+    .nSheet {
+      width:100%; max-width:460px;
+      background:var(--surface); border-top:1px solid var(--border);
+      border-radius:22px 22px 0 0; padding:22px 20px calc(28px + env(safe-area-inset-bottom));
+      animation:slideUp .3s cubic-bezier(.4,0,.2,1); max-height:88vh; overflow-y:auto;
+    }
+    @keyframes slideUp { from{transform:translateY(100%)} to{transform:translateY(0)} }
+    .nSheet::-webkit-scrollbar { width:3px; }
+    .nSheet::-webkit-scrollbar-thumb { background:var(--border); border-radius:2px; }
+    .nSheetTitle { font-family:var(--font-num); font-size:22px; letter-spacing:3px; color:var(--accent); margin-bottom:4px; }
+    .nSheetSub   { font-size:12px; color:var(--text2); margin-bottom:14px; line-height:1.6; }
+    .nBrowserLabel { font-size:10px; font-weight:700; letter-spacing:2px; text-transform:uppercase; color:var(--text3); margin:12px 0 6px; }
+    .nStep {
+      display:flex; align-items:flex-start; gap:10px;
+      background:var(--surface2); border:1px solid var(--border);
+      border-radius:10px; padding:10px 12px; margin-bottom:6px;
+      font-size:12px; color:var(--text); line-height:1.65;
+    }
+    .nStep strong { color:var(--accent); display:block; margin-bottom:2px; }
+    .nNum {
+      display:inline-flex; align-items:center; justify-content:center;
+      min-width:20px; height:20px; border-radius:50%;
+      background:var(--accent); color:#fff; font-size:10px; font-weight:700;
+      margin-top:1px; flex-shrink:0;
+    }
+    [data-theme="light"] .nNum { color:#fefae0; }
+    .nWarn {
+      background:var(--accent-dim); border:1px solid var(--accent-glow);
+      border-radius:10px; padding:10px 12px; font-size:11px;
+      color:var(--text2); line-height:1.65; margin-bottom:14px;
+    }
+    .nWarn strong { color:var(--accent); }
+    .nSheetBtns { display:flex; gap:10px; margin-top:14px; }
+    .nBtn { flex:1; padding:12px; border-radius:12px; font-family:var(--font-ui); font-size:13px; font-weight:700; cursor:pointer; }
+    .nBtnSec { background:var(--surface2); border:1px solid var(--border); color:var(--text2); }
+    .nBtnPri { background:var(--accent); border:none; color:#fff; }
+    .nBtnPri:hover { opacity:.9; transform:translateY(-1px); }
+    .permBadge {
+      display:inline-flex; align-items:center; gap:3px;
+      padding:2px 8px; border-radius:8px; font-size:9px; font-weight:700;
+      letter-spacing:.5px; text-transform:uppercase; margin-top:3px;
+    }
+    .permBadge.granted { background:rgba(93,138,94,.2);  color:#5d8a5e; }
+    .permBadge.denied  { background:rgba(200,60,60,.15); color:#cc4444; }
+    .permBadge.prompt  { background:var(--surface2);     color:var(--text3); }
+
+
+    /* ─── SYNC PILL ─── */
+    .syncPill {
+      display:inline-flex; align-items:center; gap:4px;
+      padding:2px 10px; border-radius:10px; border:1px solid var(--border);
+      font-size:10px; font-weight:500; letter-spacing:.5px; text-transform:none;
+      color:var(--text2); flex-shrink:0;
+      transition: border-color .25s, color .25s;
+    }
+    .syncPill #syncIcon { display:none; }
+    .syncPill.synced { border-color:#5d8a5e; color:#5d8a5e; }
+    .syncPill.error  { border-color:#cc4444; color:#cc4444; }
+    .syncPill.syncing { border-color:var(--accent); color:var(--accent); }
+    [data-theme="light"] .syncPill.synced { color:#4a7a4b; border-color:#4a7a4b; }
+
+    /* ─── SYNC INPUTS ─── */
+    .sInput {
+      width:100%; background:var(--surface2); border:1px solid var(--border);
+      border-radius:8px; padding:8px 10px; color:var(--text);
+      font-family:var(--font-ui); font-size:12px; outline:none;
+      transition:border-color .2s;
+    }
+    .sInput:focus { border-color:var(--accent); }
+    .sInput::placeholder { color:var(--text3); }
+
+    /* ─── COLLAPSIBLE (details) ─── */
+    summary { list-style:none; cursor:pointer; }
+    summary::-webkit-details-marker { display:none; }
+    details.sFold > summary.sHead { display:flex; align-items:center; gap:10px; }
+    details.sFold > summary.sHead .sumTitle { flex:1; }
+    details.sFold > summary.sHead::after { content:'+'; color:var(--text2); font-size:16px; letter-spacing:0; width:14px; text-align:center; }
+    details.sFold[open] > summary.sHead::after { content:'\2013'; }
+    details.sFold > .sFoldBody { padding-top:4px; }
+    .sHelp { width:100%; }
+    .sHelp > summary { font-size:12px; color:var(--text2); display:flex; justify-content:space-between; align-items:center; }
+    .sHelp > summary::after { content:'+'; font-size:16px; width:14px; text-align:center; }
+    .sHelp[open] > summary::after { content:'\2013'; }
+    .dataBtns { display:flex; gap:10px; width:100%; }
+    .dataBtns .fileBtn { flex:1; padding:10px; text-align:center; }
+
+    /* ─── SQL CODE BLOCK ─── */
+    .sqlBlock {
+      background:var(--bg); border:1px solid var(--border);
+      border-radius:8px; padding:8px 10px; margin-top:6px;
+      font-size:9px; color:var(--accent); font-family:monospace;
+      white-space:pre-wrap; word-break:break-all; line-height:1.6;
+      max-height:120px; overflow-y:auto;
+    }
+    .sqlBlock::-webkit-scrollbar { width:3px; }
+    .sqlBlock::-webkit-scrollbar-thumb { background:var(--border); border-radius:2px; }
+
+    @media (max-height:640px) {
+      .timerWrap { width:min(230px,66vw); height:min(230px,66vw); }
+      .timerDigits { font-size:clamp(52px,15vw,64px); }
+      .timerMain { gap:16px; }
+      .quoteWrap { padding-bottom:10px; }
+      .quoteText { font-size:11px; line-height:1.5; }
+    }
+  </style>
+  <!-- Supabase JS SDK -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+</head>
+<body>
+<div id="confetti"></div>
+
+<div id="app">
+  <h1 class="srOnly">Focus — Pomodoro Timer</h1>
+  <nav class="tabs">
+    <button type="button" class="tab active" data-tab="timer"    aria-current="page" onclick="switchTab('timer')">Timer</button>
+    <button type="button" class="tab"        data-tab="stats"    onclick="switchTab('stats')">Stats</button>
+    <button type="button" class="tab"        data-tab="settings" onclick="switchTab('settings')">Settings</button>
+  </nav>
+
+  <!-- TIMER -->
+  <div class="view active" id="timerView">
+    <div class="timerMain">
+    <div class="timerWrap">
+      <svg class="timerSvg" viewBox="0 0 300 300" aria-hidden="true">
+        <circle class="rBg"   cx="150" cy="150" r="128"/>
+        <circle class="rProg" cx="150" cy="150" r="128" id="ringProg"/>
+      </svg>
+      <div class="timerInner">
+        <div class="timerDigits" id="timerDigits" role="timer">25:00</div>
+        <div class="timerSub"    id="timerSub">READY TO FOCUS</div>
+      </div>
+    </div>
+    <div class="todayLine"><span id="goalCurrent">0</span> / <span id="goalTarget">8</span> today</div>
+    <div class="controls">
+      <button class="ctrlBtn" onclick="resetTimer()" title="Reset" aria-label="Reset">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/>
+          <path d="M3 3v5h5"/>
+        </svg>
+      </button>
+      <!-- Main play / pause button — SVG swapped by updateControlUI() -->
+      <button class="mainBtn" id="mainBtn" onclick="toggleTimer()" title="Start / pause" aria-label="Start or pause">
+        <svg id="mainBtnIcon" viewBox="0 0 24 24" fill="white" stroke="none">
+          <polygon points="6,3 20,12 6,21" fill="white"/>
+        </svg>
+      </button>
+      <button class="ctrlBtn" onclick="skipPhase()" title="Skip" aria-label="Skip to next phase">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <polygon points="5,4 15,12 5,20" fill="currentColor" stroke="none"/>
+          <line x1="19" y1="4" x2="19" y2="20"/>
+        </svg>
+      </button>
+    </div>
+    </div>
+    <div class="quoteWrap"><div class="quoteText" id="quoteText">"The secret of getting ahead is getting started." — Mark Twain</div></div>
+  </div>
+
+  <!-- STATS -->
+  <div class="view" id="statsView">
+    <div class="scrollable">
+      <div class="statPair">
+        <div class="statBlock">
+          <div class="statNum" id="stToday">0</div>
+          <div class="statLbl">Today</div>
+          <div class="adjRow">
+            <button class="adjBtn" onclick="adjustToday(-1)" title="Remove one pomodoro" aria-label="Remove one pomodoro from today">&minus;</button>
+            <button class="adjBtn" onclick="adjustToday(1)"  title="Add one pomodoro"    aria-label="Add one pomodoro to today">+</button>
+          </div>
+        </div>
+        <div class="statBlock">
+          <div class="statNum" id="stStreak">0</div>
+          <div class="statLbl">Day streak</div>
+        </div>
+      </div>
+      <div class="calBlock">
+        <div class="calNav">
+          <button class="navBtn" onclick="calNav(-1)" aria-label="Previous week">&lsaquo;</button>
+          <div class="calTitle" id="calTitle">This week</div>
+          <button class="navBtn" onclick="calNav(1)" aria-label="Next week">&rsaquo;</button>
+        </div>
+        <div id="calGrid"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SETTINGS -->
+  <div class="view" id="settingsView">
+    <div class="scrollable">
+      <div class="sSection">
+        <div class="sHead">Timer</div>
+        <div class="sRow"><div><div class="sLabel">Pomodoro</div></div><div class="stepper"><button class="stepBtn" onclick="adj('pomodoroDuration',-1)">−</button><div class="stepVal" id="sv_pomodoroDuration">25m</div><button class="stepBtn" onclick="adj('pomodoroDuration',1)">+</button></div></div>
+        <div class="sRow"><div><div class="sLabel">Short break</div></div><div class="stepper"><button class="stepBtn" onclick="adj('shortBreakDuration',-1)">−</button><div class="stepVal" id="sv_shortBreakDuration">5m</div><button class="stepBtn" onclick="adj('shortBreakDuration',1)">+</button></div></div>
+        <div class="sRow"><div><div class="sLabel">Long break</div></div><div class="stepper"><button class="stepBtn" onclick="adj('longBreakDuration',-1)">−</button><div class="stepVal" id="sv_longBreakDuration">30m</div><button class="stepBtn" onclick="adj('longBreakDuration',1)">+</button></div></div>
+        <div class="sRow"><div><div class="sLabel">Pomodoros before long break</div></div><div class="stepper"><button class="stepBtn" onclick="adj('pomodorosPerCycle',-1)">−</button><div class="stepVal" id="sv_pomodorosPerCycle">5</div><button class="stepBtn" onclick="adj('pomodorosPerCycle',1)">+</button></div></div>
+        <div class="sRow"><div><div class="sLabel">Daily goal</div></div><div class="stepper"><button class="stepBtn" onclick="adj('dailyGoal',-1)">−</button><div class="stepVal" id="sv_dailyGoal">8</div><button class="stepBtn" onclick="adj('dailyGoal',1)">+</button></div></div>
+        <div class="sRow"><div class="sLabel">Auto-start breaks</div><div class="tog" id="tog_autoBreaks" onclick="togSetting('autoStartBreaks','tog_autoBreaks')"></div></div>
+        <div class="sRow"><div class="sLabel">Auto-start pomodoros</div><div class="tog" id="tog_autoPomodoro" onclick="togSetting('autoStartPomodoros','tog_autoPomodoro')"></div></div>
+      </div>
+      <div class="sSection">
+        <div class="sHead">Sound</div>
+        <div class="sRow"><div class="sLabel">Sound</div><div class="tog" id="tog_soundEnabled" onclick="toggleSound()" role="switch" aria-label="Sound"></div></div>
+        <div class="sRow"><div class="sLabel">Alert sound</div><div style="display:flex;gap:8px;align-items:center"><select class="sSelect" id="soundSelect" onchange="settings.selectedSound=this.value;saveSettings()"><option value="bell">Bell</option><option value="digital">Digital</option><option value="chime">Chime</option><option value="soft">Soft</option><option value="custom">Custom file</option></select><button class="prevBtn" onclick="previewSound()">▶ Test</button></div></div>
+        <div class="sRow"><div><div class="sLabel">Tick sound</div></div><div class="tog" id="tog_tickSound" onclick="togSetting('tickSound','tog_tickSound')"></div></div>
+        <div class="sRow">
+          <div style="flex:1">
+            <div class="sLabel">Custom audio</div>
+            <div class="sSub" id="customSoundSub">No files loaded</div>
+            <div class="sSub" style="margin-top:3px;color:var(--text3)">MP3 and M4A play on every device</div>
+          </div>
+          <label class="fileBtn" for="audioFilePicker" style="cursor:pointer;display:inline-flex;align-items:center;gap:5px">
+            Browse
+          </label>
+        </div>
+        <div class="sRow">
+          <div style="flex:1">
+            <div class="sLabel">Custom audio plays as</div>
+            <div class="sSub" id="customModeDesc" hidden></div>
+          </div>
+          <select class="sSelect" id="customModeSelect" onchange="setCustomSoundMode(this.value)">
+            <option value="background">Music — plays while the timer runs</option>
+            <option value="notification">Alert — plays when the timer ends</option>
+          </select>
+        </div>
+        <div id="widgetRow" class="sRow" style="display:none">
+          <div style="flex:1">
+            <div class="sLabel">Lock-screen widget</div>
+            <div class="sSub" id="widgetDesc"></div>
+          </div>
+          <select class="sSelect" id="widgetModeSelect" onchange="setWidgetMode(this.value)">
+            <option value="music">Music — shows your song</option>
+            <option value="timer">Timer — minutes &amp; countdown</option>
+          </select>
+        </div>
+        <div id="bgMusicRow" class="sRow" style="display:none">
+          <div class="sLabel" id="bgVolLabel">Music Volume</div>
+          <input type="range" min="0" max="1" step="0.05" id="bgVolSlider"
+                 oninput="settings.bgMusicVolume=parseFloat(this.value);if(bgAudio)bgAudio.volume=settings.bgMusicVolume;saveSettings()">
+        </div>
+        <div id="customFileList"></div>
+        <!-- Persistent file input — iOS requires element to be in DOM -->
+        <input
+          type="file"
+          id="audioFilePicker"
+          accept="audio/*,.mp3,.m4a,.aac,.wav,.ogg,.oga,.opus,.flac,.weba,.caf,.aif,.aiff"
+          multiple
+          style="position:absolute;width:1px;height:1px;opacity:0;pointer-events:none;overflow:hidden"
+          onchange="handleAudioFileInput(this)"
+        />
+      </div>
+      <div class="sSection">
+        <div class="sHead">Notifications &amp; display</div>
+        <div class="sRow">
+          <div style="flex:1">
+            <div class="sLabel">Push notifications</div>
+            <div id="permBadgeWrap"></div>
+          </div>
+          <div style="display:flex;align-items:center;gap:8px;flex-shrink:0">
+            <button class="prevBtn" onclick="showNotifModal()" style="font-size:11px;padding:4px 10px">Help</button>
+            <div class="tog" id="tog_notifications" onclick="handleNotifToggle()"></div>
+          </div>
+        </div>
+        <div class="sRow"><div><div class="sLabel">Lock screen timer</div></div><div class="tog on" id="tog_lockScreen" onclick="togSetting('lockScreen','tog_lockScreen')"></div></div>
+        <div class="sRow">
+          <details class="sHelp">
+            <summary>How to show the timer on your lock screen</summary>
+            <div class="lockNote" id="lockScreenNote"><span id="lockScreenInstructions"></span></div>
+          </details>
+        </div>
+        <div class="sRow"><div class="sLabel">Light theme</div><div class="tog" id="tog_theme" onclick="toggleTheme()" role="switch" aria-label="Light theme"></div></div>
+      </div>
+      <details class="sSection sFold" id="syncSection">
+        <summary class="sHead"><span class="sumTitle">Cloud sync</span><span class="syncPill off" id="syncPill"><span id="syncIcon">☁</span><span id="syncLabel">Off</span></span></summary>
+        <div class="sFoldBody">
+
+        <!-- Status + Sync button -->
+        <div class="sRow" style="padding:10px 0">
+          <div style="flex:1">
+            <div class="sLabel">Status</div>
+            <div class="sSub" id="syncStatusText">Not configured</div>
+          </div>
+          <button class="prevBtn" onclick="fullSync()" style="font-size:11px;flex-shrink:0">Sync now</button>
+        </div>
+
+        <!-- URL + Key stacked compactly -->
+        <div style="padding:14px 0 12px;display:flex;flex-direction:column;gap:10px;border-bottom:1px solid var(--border)">
+          <div>
+            <div class="sLabel" style="margin-bottom:4px;font-size:12px">Project URL</div>
+            <input class="sInput" id="sbUrl" type="url" placeholder="https://xxxx.supabase.co" autocomplete="off" spellcheck="false"/>
+          </div>
+          <div>
+            <div class="sLabel" style="margin-bottom:4px;font-size:12px">Anon / public key</div>
+            <div style="display:flex;gap:8px">
+              <input class="sInput" id="sbKey" type="password" placeholder="eyJhbGci..." autocomplete="off" spellcheck="false" style="flex:1;min-width:0"/>
+              <button class="prevBtn" id="sbKeyToggle" onclick="toggleKeyVis()" style="flex-shrink:0;min-width:52px">Show</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Action buttons row -->
+        <div style="padding:10px 0;display:flex;gap:8px;border-bottom:1px solid var(--border)">
+          <button class="fileBtn" style="flex:1" onclick="saveSyncSettings()">Save</button>
+          <button class="fileBtn" style="flex:1" onclick="testSbConnection()">Test</button>
+          <button class="fileBtn" style="flex:1;color:var(--accent)" onclick="disconnectSync()">Disconnect</button>
+        </div>
+
+        <!-- Device ID compact row -->
+        <div class="sRow" style="padding:10px 0">
+          <div style="flex:1;min-width:0">
+            <div class="sLabel">Device ID</div>
+            <div id="sbUserId" style="color:var(--accent);font-size:9px;word-break:break-all;margin-top:3px;font-family:monospace;line-height:1.5;opacity:.85"></div>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:6px;flex-shrink:0;margin-left:10px">
+            <button class="fileBtn" onclick="copyUserId()">Copy</button>
+          </div>
+        </div>
+
+        <!-- Link devices via transfer code -->
+        <div style="padding:10px 0;border-bottom:1px solid var(--border)">
+          <div class="sLabel" style="margin-bottom:6px">Link Another Device</div>
+          <div style="display:flex;gap:6px;margin-bottom:6px">
+            <button class="fileBtn" style="flex:1" onclick="generateTransferCode()">Get code</button>
+            <div class="sSub" style="align-self:center;color:var(--text3);font-size:10px">← on this device first</div>
+          </div>
+          <div style="display:flex;gap:8px">
+            <input class="sInput" id="sbUidInput" type="text" placeholder="Code from other device" spellcheck="false" style="flex:1;min-width:0;font-size:12px;letter-spacing:2px;text-transform:uppercase"/>
+            <button class="fileBtn" onclick="applyUserId()" style="flex-shrink:0">Link</button>
+          </div>
+          <div class="sSub" style="margin-top:5px;color:var(--text3)">Codes expire after 10 minutes</div>
+        </div>
+
+        <!-- SQL setup — collapsed by default, expand on tap -->
+        <div style="padding:10px 0">
+          <button onclick="toggleSqlPanel()" class="prevBtn" style="width:100%;text-align:left;padding:8px 10px;font-size:11px" id="sqlToggleBtn">
+            One-time SQL setup &amp; instructions ▸
+          </button>
+          <div id="sqlPanel" style="display:none;margin-top:8px">
+            <div class="tipBox" style="font-size:11px;line-height:1.7">
+              1. Free account at <strong>supabase.com</strong><br>
+              2. Project → Settings → API → copy URL + anon key<br>
+              3. SQL Editor → paste &amp; run the SQL below<br>
+              4. Other device → paste your Device ID to link
+            </div>
+            <div class="sqlBlock" id="sqlBlock" style="margin-top:6px"></div>
+            <button class="prevBtn" onclick="copySql()" style="margin-top:6px;width:100%">Copy SQL</button>
+          </div>
+        </div>
+        </div>
+      </details>
+      <div class="sSection">
+        <div class="sHead">Data</div>
+        <div class="sRow"><div class="dataBtns"><button class="fileBtn" onclick="exportData()">Export JSON</button><button class="fileBtn" onclick="importData()">Import JSON</button></div></div>
+      </div>
+      <button class="applyBtn" onclick="applySettings()">Apply &amp; save</button>
+      <div class="sSub" id="buildStamp" style="text-align:center;margin:-10px 0 22px;opacity:.6">Build 2026-11-20 · audio-v9</div>
+    </div>
+  </div>
+</div>
+
+<div id="doneOverlay">
+  <div class="doneIcon" id="doneIcon">🍅</div>
+  <div class="doneTitle" id="doneTitle">DONE!</div>
+  <div class="doneMsg"   id="doneMsg">Pomodoro complete. Take a well-earned break.</div>
+  <div class="doneBtns">
+    <button class="doneBtn doneBtnSec" onclick="dismissDone(false)">Dismiss</button>
+    <button class="doneBtn doneBtnPri" onclick="dismissDone(true)"><span id="nextLbl">Start Break</span></button>
+  </div>
+</div>
+<div id="toast"></div>
+
+<!-- NOTIFICATION SETUP MODAL -->
+<div id="notifModal" onclick="closeNotifModal(event)">
+  <div class="nSheet" id="nSheet">
+    <div class="nSheetTitle" id="nModalTitle">NOTIFICATIONS</div>
+    <div class="nSheetSub"   id="nModalSub">Follow the steps below for your browser.</div>
+    <div id="nModalBody"></div>
+    <div class="nSheetBtns">
+      <button class="nBtn nBtnSec" onclick="closeNotifModal()">Close</button>
+      <button class="nBtn nBtnPri" id="nModalAction" onclick="handleNotifToggle();closeNotifModal()">Enable</button>
+    </div>
+  </div>
+</div>
+
+<script>
+'use strict';
+
+/* ─── theme flash prevention ─── */
+(function(){
+  const t = localStorage.getItem('pomo_theme') || 'dark';
+  document.documentElement.setAttribute('data-theme', t);
+  document.getElementById('themeColorMeta').content = t==='light' ? '#fefae0' : '#07091a';
+})();
+
+function toggleTheme(){
+  const cur  = document.documentElement.getAttribute('data-theme');
+  const next = cur==='dark' ? 'light' : 'dark';
+  document.documentElement.setAttribute('data-theme', next);
+  document.getElementById('themeColorMeta').content = next==='light' ? '#fefae0' : '#07091a';
+  localStorage.setItem('pomo_theme', next);
+  showToast(next==='light' ? 'Light theme' : 'Dark theme');
+  updateAccent();
+  syncThemeToggle();
+}
+function syncThemeToggle(){
+  const t=document.getElementById('tog_theme');
+  if(t) t.classList.toggle('on', document.documentElement.getAttribute('data-theme')==='light');
+}
+
+/* ─── PHASE COLOR MAPS ─── */
+function getPhaseColors(){
+  /* Single accent for every phase — the phase is named in the timer caption instead of colour-coded. */
+  const L = document.documentElement.getAttribute('data-theme')==='light';
+  const a = L ? {a:'#b07030',g:'rgba(176,112,48,.32)',d:'rgba(176,112,48,.14)'}
+              : {a:'#ff6b6b',g:'rgba(255,107,107,.35)',d:'rgba(255,107,107,.12)'};
+  return { pomodoro:a, shortBreak:a, longBreak:a };
+}
+
+/* ─── DEFAULT CONFIGS ─── */
+const DEF_SETTINGS = {
+  pomodoroDuration:25, shortBreakDuration:5, longBreakDuration:30,
+  pomodorosPerCycle:5, dailyGoal:8,
+  autoStartBreaks:false, autoStartPomodoros:false,
+  soundEnabled:true, soundVolume:.7, selectedSound:'bell',
+  tickSound:false, notifications:false, lockScreen:true, customSoundFiles:[],
+  customSoundMode:'background', bgMusicVolume:0.5, widgetMode:'music',
+};
+const DEF_STATE = {
+  phase:'pomodoro', cycleCount:0, status:'idle',
+  startTimestamp:null, remainingMs:25*60*1000, phaseDurationMs:25*60*1000,
+};
+
+let settings={...DEF_SETTINGS}, state={...DEF_STATE}, history={};
+const BUILD_NUM = 9;                                // bump on every release; shown in Settings and used for the update check
+const _ls = { meta:0, pos:0, err:'', last:'' };   // lock-screen update counters (shown in Settings)
+let audioCtx=null, tickId=null, silentNode=null, silentAudioEl=null, mediaHeartbeat=null;
+let bgAudio=null;  // background music <audio> element (see CUSTOM AUDIO)
+let wakeLock=null, calOffset=0;
+const CIRC = 2*Math.PI*128;
+
+/* ─── INIT ─── */
+function init(){
+  loadSettings(); loadHistory(); loadState();
+  renderAll(); injectManifest();
+  cycleQuotes();
+  document.addEventListener('visibilitychange', onVis);
+  window.addEventListener('beforeunload', saveState);
+  window.addEventListener('focus', onVis);
+  window.addEventListener('online',  () => { flushSyncQueue(); fullSync(); });
+  window.addEventListener('offline', () => { updateSyncPill('error'); showToast('Offline — changes queued'); });
+  tickId = setInterval(tick, 250);
+  // Ask the browser not to evict saved audio, then load it into memory before any tap
+  requestPersistentStorage();
+  loadCustomAudio();
+  setTimeout(checkForUpdate, 2500);
+  document.addEventListener('visibilitychange', function(){ if(document.visibilityState === 'visible') setTimeout(checkForUpdate, 1500); });
+  // Init Supabase after a tick so DOM is fully ready
+  setTimeout(initSupabase, 100);
+}
+
+/* ─── STORAGE ─── */
+function loadSettings(){ try{ const s=localStorage.getItem('pomo_settings'); if(s) settings={...DEF_SETTINGS,...JSON.parse(s)}; }catch(e){}
+  /* One-time: custom audio now plays with the timer (start/pause/reset) by default. */
+  if(!settings.customModeMigrated){ settings.customSoundMode = 'background'; settings.customModeMigrated = true; try{ localStorage.setItem('pomo_settings', JSON.stringify(settings)); }catch(e){} }
+  settings.soundVolume=DEF_SETTINGS.soundVolume; /* alert volume slider removed */ }
+function saveSettings(){ try{ localStorage.setItem('pomo_settings',JSON.stringify(settings)); }catch(e){} }
+function loadHistory(){ try{ const h=localStorage.getItem('pomo_history'); if(h) history=JSON.parse(h); }catch(e){ history={}; } }
+function saveHistory(){ try{ localStorage.setItem('pomo_history',JSON.stringify(history)); }catch(e){} }
+
+/* CRITICAL: Restore timer state across refresh using timestamps */
+function loadState(){
+  try{
+    const raw=localStorage.getItem('pomo_state');
+    if(!raw){ resetStateToPhase(); return; }
+    state={...DEF_STATE,...JSON.parse(raw)};
+    if(state.status==='running' && state.startTimestamp){
+      const elapsed=Date.now()-state.startTimestamp;
+      state.remainingMs=Math.max(0, state.phaseDurationMs-elapsed);
+      state.startTimestamp=Date.now()-(state.phaseDurationMs-state.remainingMs);
+      if(state.remainingMs===0){ state.status='idle'; completePhase(true); return; }
+    }
+  }catch(e){ state={...DEF_STATE}; resetStateToPhase(); }
+}
+function saveState(){ try{ localStorage.setItem('pomo_state',JSON.stringify(state)); }catch(e){} }
+function resetStateToPhase(){ state.remainingMs=getPhaseDur(); state.phaseDurationMs=state.remainingMs; }
+
+/* ─── TICK ─── */
+let lastSec=-1;
+function tick(){
+  if(state.status!=='running') return;
+  state.remainingMs=Math.max(0, state.phaseDurationMs-(Date.now()-state.startTimestamp));
+  updateTimerDisplay();
+  const s=Math.floor(state.remainingMs/1000);
+  /* Update Media Session + position once per second (not 4× per sec) */
+  if(s !== lastSec){
+    /* setMediaMetadata() is NEVER called here — assigning new MediaMetadata
+       resets setPositionState to 0 on iOS. Instead:
+       - updatePositionState() → updates the scrub bar (every second)
+       - mutateMetadata()      → mutates title+artwork IN-PLACE (every min)
+         In-place mutation does NOT reset setPositionState.             */
+    updatePositionState();   // scrub bar — safe, only from tick()
+    mutateMetadata();        // icon + title — in-place, safe during playback
+    if(settings.tickSound && audioCtx) playTick();
+    lastSec=s;
+    if(s%5===0) saveState();
+  }
+  if(state.remainingMs===0) completePhase(false);
+}
+
+/* ─── CONTROLS ─── */
+function toggleTimer(){ unlockAudio(); state.status==='running' ? pauseTimer() : startTimer(); }
+function startTimer(){
+  _bgFailed = false;
+  if(state.status==='idle'){ state.phaseDurationMs=getPhaseDur(); state.remainingMs=state.phaseDurationMs; }
+  state.startTimestamp=Date.now()-(state.phaseDurationMs-state.remainingMs);
+  state.status='running';
+  /* Track when this phase began so updatePositionState has a stable elapsed */
+  _phaseStartMs = state.startTimestamp;
+  updateTimerDisplay(); updateControlUI(); updatePlaybackState();
+  activateSilentAudio(); reqWakeLock(); saveState();
+  if(state.phase==='pomodoro') bgMusicStart(); else bgMusicStop();
+  /* setMediaMetadata() is called from activateSilentAudio's play().then()
+     so it fires AFTER audio is confirmed playing (required by iOS).     */
+}
+function pauseTimer(){
+  /* freeze the exact remaining time, then refresh the caption ("PAUSED") — it was never redrawn before */
+  if(state.status==='running' && state.startTimestamp) state.remainingMs=Math.max(0, state.phaseDurationMs-(Date.now()-state.startTimestamp));
+  state.status='paused'; state.startTimestamp=null;
+  saveState(); updateTimerDisplay(); updateControlUI(); updatePlaybackState(); deactivateSilentAudio(); bgMusicPause();
+}
+function resetTimer(){ state.status='idle'; state.startTimestamp=null; resetStateToPhase(); updateTimerDisplay(); updateControlUI(); saveState(); deactivateSilentAudio(); bgMusicStop(); }
+function skipPhase(){ completePhase(true); }
+function getPhaseDur(){
+  if(state.phase==='shortBreak') return settings.shortBreakDuration*60000;
+  if(state.phase==='longBreak')  return settings.longBreakDuration*60000;
+  return settings.pomodoroDuration*60000;
+}
+
+/* ─── PHASE COMPLETE ─── */
+function completePhase(silent=false){
+  state.status='idle'; state.startTimestamp=null;
+  if(state.phase==='pomodoro'){ state.cycleCount++; recordPomo(); }
+  saveState(); saveHistory(); renderAll();
+  bgMusicStop();
+  /* FIX: Immediately tell iOS the session is paused and clear the scrub bar.
+     Without this, mediaSession.playbackState stays 'playing' and iOS
+     keeps extrapolating the old phase's position forward on the lock screen,
+     making the finished break timer appear to continue counting. */
+  updatePlaybackState();
+  try{ if('mediaSession' in navigator) navigator.mediaSession.setPositionState({}); }catch(e){}
+  if(!silent){ playNotif(); sendPush(); showDoneOverlay(); spawnConfetti(); }
+  else{ advancePhase(); updateTimerDisplay(); updateControlUI(); }
+}
+function advancePhase(){
+  if(state.phase==='pomodoro'){
+    state.phase = state.cycleCount>=settings.pomodorosPerCycle ? 'longBreak' : 'shortBreak';
+    if(state.phase==='longBreak') state.cycleCount=0;
+  } else { state.phase='pomodoro'; }
+  resetStateToPhase(); updateAccent();
+
+  /* ── Fix widget freeze after skip ────────────────────────────────
+     Bust art cache so new phase icon renders immediately.
+     Clear iOS position state so the scrub bar resets to 0 cleanly.
+     Re-register media session metadata with new phase info.
+     If auto-start is OFF, keep audio playing so widget stays alive. */
+  bustArtCache();
+  /* Reset phase start clock so position bar begins fresh */
+  _phaseStartMs = Date.now();
+
+  /* Clear position state (prevents old phase scrub bar lingering) */
+  try{
+    if('mediaSession' in navigator)
+      navigator.mediaSession.setPositionState({});
+  }catch(e){}
+
+  /* Brief delay then update session with new phase — this makes the
+     widget title/art refresh cleanly rather than showing stale info */
+  setTimeout(function(){
+    if(!('mediaSession' in navigator)) return;
+    /* Phase changed — safe to reassign MediaMetadata here because
+       tick() hasn't started for this phase yet (status='idle' or
+       auto-start fires 800ms later). Position state will be set by
+       updatePositionState() once tick() runs after the new phase starts. */
+    try{ navigator.mediaSession.setPositionState({}); }catch(e){}
+    if(silentAudioEl && settings.lockScreen){
+      if(silentAudioEl.paused){
+        silentAudioEl.play().then(function(){
+          setMediaMetadata();
+          updatePlaybackState();
+        }).catch(function(){
+          setMediaMetadata();
+          updatePlaybackState();
+        });
+      } else {
+        setMediaMetadata();
+        updatePlaybackState();
+      }
+    } else {
+      setMediaMetadata();
+      updatePlaybackState();
+    }
+  }, 200);
+
+  if(state.phase!=='pomodoro' && settings.autoStartBreaks)    setTimeout(startTimer,800);
+  if(state.phase==='pomodoro' && settings.autoStartPomodoros) setTimeout(startTimer,800);
+}
+
+/* ─── HISTORY ─── */
+function todayKey(){ return new Date().toISOString().slice(0,10); }
+function recordPomo(){
+  const k=todayKey();
+  history[k]=(history[k]||0)+1;
+  sbPush(k, history[k]);
+}
+
+/* Manually adjust today's pomodoro count (+1 or -1) */
+function adjustToday(delta){
+  const k = todayKey();
+  const current = history[k] || 0;
+  const next = Math.max(0, current + delta);
+  if(next === current) return;    // already at 0, nothing to do
+  history[k] = next;
+  saveHistory();
+  renderGoalBar();
+  renderStats();
+  renderCalendar();
+  sbPush(k, next);                // sync to Supabase
+  showToast((delta > 0 ? '+1' : '\u22121') + ' \u00b7 Today: ' + next);
+}
+function getStreak(){
+  let n=0;
+  for(let i=0;i<365;i++){
+    const k=new Date(Date.now()-i*86400000).toISOString().slice(0,10);
+    if(history[k]>0) n++; else break;
+  }
+  return n;
+}
+function getWeekData(off=0){
+  const today=new Date(); const dow=today.getDay();
+  const mon=new Date(today); mon.setDate(today.getDate()-(dow===0?6:dow-1)+off*7);
+  return Array.from({length:7},(_,i)=>{
+    const d=new Date(mon); d.setDate(mon.getDate()+i);
+    const k=d.toISOString().slice(0,10);
+    return{date:d,key:k,count:history[k]||0,label:['Mo','Tu','We','Th','Fr','Sa','Su'][i],isToday:k===todayKey()};
+  });
+}
+
+/* ─── RENDER ─── */
+function renderAll(){
+  updateTimerDisplay(); updateControlUI(); updateAccent();
+  renderGoalBar(); renderStats(); renderCalendar();
+}
+
+function updateTimerDisplay(){
+  const ms=state.remainingMs;
+  const str=`${String(Math.floor(ms/60000)).padStart(2,'0')}:${String(Math.floor((ms%60000)/1000)).padStart(2,'0')}`;
+  document.getElementById('timerDigits').textContent=str;
+  document.title=state.status==='running' ? `${str} — Focus` : 'Focus Timer';
+  const total=state.phaseDurationMs||getPhaseDur()||1;
+  const rp=document.getElementById('ringProg');
+  rp.style.strokeDasharray=CIRC;
+  rp.style.strokeDashoffset=CIRC*(1-ms/total);
+  const subs={idle:{pomodoro:'READY TO FOCUS',shortBreak:'READY TO BREAK',longBreak:'READY TO REST'},running:{pomodoro:'DEEP FOCUS',shortBreak:'SHORT BREAK',longBreak:'LONG BREAK'},paused:{pomodoro:'PAUSED',shortBreak:'PAUSED',longBreak:'PAUSED'}};
+  document.getElementById('timerSub').textContent=(subs[state.status]||subs.idle)[state.phase]||'';
+}
+function updateControlUI(){
+  var el = document.getElementById('mainBtnIcon');
+  if(!el) return;
+  if(state.status === 'running'){
+    /* Pause — two rounded rectangles */
+    el.innerHTML =
+      '<rect x="5"  y="3" width="4" height="18" rx="1.5" fill="white"/>' +
+      '<rect x="15" y="3" width="4" height="18" rx="1.5" fill="white"/>';
+  } else {
+    /* Play — solid triangle, nudged right 1px for optical centering */
+    el.innerHTML = '<polygon points="7,3 21,12 7,21" fill="white"/>';
+  }
+}
+function updateAccent(){
+  const c=(getPhaseColors()[state.phase]||getPhaseColors().pomodoro);
+  document.documentElement.style.setProperty('--accent',c.a);
+  document.documentElement.style.setProperty('--accent-glow',c.g);
+  document.documentElement.style.setProperty('--accent-dim',c.d);
+}
+function renderGoalBar(){
+  const cnt=history[todayKey()]||0, goal=settings.dailyGoal;
+  document.getElementById('goalCurrent').textContent=cnt;
+  document.getElementById('goalTarget').textContent=goal;
+}
+function renderStats(){
+  const t=document.getElementById('stToday'), st=document.getElementById('stStreak');
+  if(t)  t.textContent = history[todayKey()]||0;
+  if(st) st.textContent = getStreak();
+}
+
+/* ─── CALENDAR ─── */
+function calNav(d){ calOffset+=d; renderCalendar(); }
+function renderCalendar(){ const g=document.getElementById('calGrid'); if(!g) return; g.innerHTML=''; renderWeekCal(g); }
+
+function renderWeekCal(g){
+  const days=getWeekData(calOffset), mx=Math.max(1,...days.map(d=>d.count));
+  document.getElementById('calTitle').textContent=`${fmt(days[0].date)} – ${fmt(days[6].date)}`;
+  const wg=document.createElement('div'); wg.className='weekGrid';
+  days.forEach(day=>{
+    const bh=day.count>0?Math.max(6,day.count/mx*64):2;
+    const col=document.createElement('div'); col.className='wCol'+(day.isToday?' today':'');
+    col.innerHTML=`<div class="wDay">${day.label}</div><div class="wBarWrap" title="${day.count} pomodoro${day.count===1?'':'s'}"><div class="wBar${day.isToday?' today':''}" style="height:${bh}px"></div></div><div class="wCount">${day.count}</div><div class="wDate">${day.date.getDate()}</div>`;
+    wg.appendChild(col);
+  });
+  g.appendChild(wg);
+}
+function fmt(d){ return d.toLocaleDateString('en',{month:'short',day:'numeric'}); }
+
+/* ─── SETTINGS UI ─── */
+const SLimits={pomodoroDuration:[1,90],shortBreakDuration:[1,30],longBreakDuration:[5,60],pomodorosPerCycle:[1,10],dailyGoal:[1,20]};
+const SSuf={pomodoroDuration:'m',shortBreakDuration:'m',longBreakDuration:'m',pomodorosPerCycle:'',dailyGoal:''};
+function adj(k,d){ const [mn,mx]=SLimits[k]||[1,99]; settings[k]=Math.max(mn,Math.min(mx,settings[k]+d)); const el=document.getElementById('sv_'+k); if(el) el.textContent=settings[k]+(SSuf[k]||''); saveSettings(); }
+function togSetting(k,id){ settings[k]=!settings[k]; const el=document.getElementById(id); if(el) settings[k]?el.classList.add('on'):el.classList.remove('on'); saveSettings(); if(k==='lockScreen') updateMediaSession(); }
+function renderSettingsUI(){
+  Object.keys(SSuf).forEach(k=>{ const el=document.getElementById('sv_'+k); if(el) el.textContent=settings[k]+(SSuf[k]||''); });
+  document.getElementById('soundSelect').value=settings.selectedSound;
+  [{id:'autoBreaks',k:'autoStartBreaks'},{id:'autoPomodoro',k:'autoStartPomodoros'},{id:'tickSound',k:'tickSound'},{id:'lockScreen',k:'lockScreen'},{id:'notifications',k:'notifications'}].forEach(({id,k})=>{ const el=document.getElementById('tog_'+id); if(el) settings[k]?el.classList.add('on'):el.classList.remove('on'); });
+  syncSoundToggle(); syncThemeToggle();
+  renderPermBadge();
+  renderSyncSettingsUI();
+  renderLockScreenNote();
+  renderSoundModeUI();
+  updateCustomSub();
+  renderCustomFiles();
+  paintAllSliders();
+}
+/* ── Update check: if a newer build is published, say so (a home-screen app can keep an old copy for a long time) ── */
+function checkForUpdate(){
+  if(!/^https?:/.test(location.protocol)) return;
+  fetch(location.pathname + '?v=' + Date.now(), { cache:'no-store' })
+    .then(function(r){ return r.ok ? r.text() : ''; })
+    .then(function(t){
+      const m = /const BUILD_NUM = (\d+);/.exec(t || '');
+      if(!m || parseInt(m[1], 10) <= BUILD_NUM || document.getElementById('updateBar')) return;
+      const bar = document.createElement('button');
+      bar.id = 'updateBar';
+      bar.textContent = 'Update available — tap to update';
+      bar.style.cssText = 'position:fixed;top:0;left:0;right:0;z-index:400;padding:calc(10px + env(safe-area-inset-top)) 12px 10px;border:0;background:var(--accent);color:#fff;font:600 13px var(--font-ui);cursor:pointer';
+      bar.onclick = function(){ location.href = location.pathname + '?v=' + m[1]; };
+      document.body.appendChild(bar);
+    }).catch(function(){});
+}
+function renderBuildStamp(){
+  const el = document.getElementById('buildStamp'); if(!el) return;
+  el.textContent = 'Build 2026-11-20 · audio-v' + BUILD_NUM + ' · lock screen: title ' + _ls.meta + ', timer ' + _ls.pos + (_ls.last ? ' (' + _ls.last + ')' : '') + (_ls.err ? ' · ' + _ls.err : '');
+}
+function syncSoundToggle(){
+  const t=document.getElementById('tog_soundEnabled');
+  if(t) t.classList.toggle('on', !!settings.soundEnabled);
+}
+function toggleSound(){
+  settings.soundEnabled=!settings.soundEnabled;
+  syncSoundToggle();
+  saveSettings(); showToast(settings.soundEnabled?'Sound on':'Sound off');
+  /* the mute button also silences background music */
+  if(!settings.soundEnabled) bgMusicPause();
+  else if(state.status==='running' && state.phase==='pomodoro') bgMusicResume();
+}
+/* ══════════════════════════════════════════════════════════════════
+   NOTIFICATION SYSTEM — cross-browser (Chrome, Brave, Safari, Firefox)
+══════════════════════════════════════════════════════════════════ */
+
+/**
+ * Detects what this browser/OS can actually do with notifications.
+ * Returns an object: { api, brave, iOSSafari, iOSPWA, https, reason }
+ */
+function getNotifCapability() {
+  const ua = navigator.userAgent;
+  const isIOS = /iPad|iPhone|iPod/.test(ua) && !(typeof window !== 'undefined' && 'MSStream' in window);
+  const isSafari = /^((?!chrome|android).)*safari/i.test(ua) || /Version\/[\d.]+.*Safari/.test(ua);
+  const isStandalone = ('standalone' in navigator && navigator.standalone) ||
+                       window.matchMedia('(display-mode: standalone)').matches;
+  const isSecure = location.protocol === 'https:' || location.hostname === 'localhost' || location.hostname === '127.0.0.1';
+
+  // iOS Safari < 16.4 has NO Notification API at all
+  if (isIOS && !isStandalone) {
+    return { api: false, reason: 'ios-browser',
+             label: 'iOS Safari (browser)' };
+  }
+  // iOS as PWA (Add to Home Screen) — supported from iOS 16.4
+  if (isIOS && isStandalone) {
+    if (!('Notification' in window)) {
+      return { api: false, reason: 'ios-pwa-old',
+               label: 'iOS PWA (needs iOS 16.4+)' };
+    }
+    return { api: true, reason: 'ios-pwa', label: 'iOS PWA' };
+  }
+  // Non-secure context blocks the API in Chrome/Brave
+  if (!isSecure && !('Notification' in window)) {
+    return { api: false, reason: 'insecure', label: 'Insecure origin' };
+  }
+  // Standard check
+  if (!('Notification' in window)) {
+    return { api: false, reason: 'unsupported', label: 'Unsupported browser' };
+  }
+  // Brave detection (navigator.brave exists and is an object with isBrave)
+  const isBrave = !!(navigator.brave);
+  return {
+    api: true,
+    brave: isBrave,
+    isSafari: isSafari,
+    isSecure: isSecure,
+    reason: 'ok',
+    label: isBrave ? 'Brave' : (isSafari ? 'Safari' : 'Chrome / Firefox')
+  };
+}
+
+/**
+ * Cross-browser Promise wrapper for Notification.requestPermission().
+ * Old Safari/Firefox used a callback; modern browsers return a Promise.
+ * This wrapper handles BOTH without breaking either.
+ */
+function requestNotifPermission() {
+  return new Promise(function(resolve, reject) {
+    try {
+      // Try calling with a callback (old API — Safari < 15, old Firefox)
+      var result = Notification.requestPermission(function(perm) {
+        resolve(perm);
+      });
+      // If it also returns a Promise (modern API), race both
+      if (result && typeof result.then === 'function') {
+        result.then(resolve, reject);
+      }
+    } catch(e) {
+      reject(e);
+    }
+  });
+}
+
+/** Update all notification-related UI elements to reflect current state */
+function updateNotifUI() {
+  var on = settings.notifications;
+  var tog = document.getElementById('tog_notifications');
+  if (tog) on ? tog.classList.add('on') : tog.classList.remove('on');
+  // Update permission badge
+  renderPermBadge();
+}
+
+function renderPermBadge() {
+  var wrap = document.getElementById('permBadgeWrap');
+  if (!wrap) return;
+  var cap = getNotifCapability();
+  if (!cap.api) {
+    wrap.innerHTML = '<span class="permBadge denied">✕ Not available</span>';
+    return;
+  }
+  var perm = Notification.permission; // 'granted' | 'denied' | 'default'
+  var labels = { granted:'✓ Allowed', denied:'✕ Blocked', default:'– Not set' };
+  var cls    = { granted:'granted',   denied:'denied',    default:'prompt' };
+  wrap.innerHTML = '<span class="permBadge ' + (cls[perm]||'prompt') + '">' + (labels[perm]||'– Unknown') + '</span>';
+}
+
+/** Main toggle — called by the toggle button and the header bell icon */
+async function handleNotifToggle() {
+  // ── Turn OFF ──────────────────────────────────────────────────────
+  if (settings.notifications) {
+    settings.notifications = false;
+    updateNotifUI();
+    saveSettings();
+    showToast('Notifications off');
+    return;
+  }
+
+  // ── Capability check ─────────────────────────────────────────────
+  var cap = getNotifCapability();
+  if (!cap.api) {
+    showNotifModal();   // modal explains exactly what to do
+    return;
+  }
+
+  // ── Already blocked at OS/browser level ──────────────────────────
+  if (Notification.permission === 'denied') {
+    showToast('Blocked — open modal for instructions');
+    showNotifModal();
+    return;
+  }
+
+  // ── Already granted — just turn on ───────────────────────────────
+  if (Notification.permission === 'granted') {
+    settings.notifications = true;
+    updateNotifUI();
+    saveSettings();
+    showToast('Notifications enabled ✔');
+    sendTestNotif();
+    return;
+  }
+
+  // ── Request permission (handles both callback + Promise APIs) ─────
+  try {
+    var perm = await requestNotifPermission();
+    settings.notifications = (perm === 'granted');
+    updateNotifUI();
+    saveSettings();
+    if (perm === 'granted') {
+      showToast('Notifications enabled ✔');
+      sendTestNotif();
+    } else if (perm === 'denied') {
+      showToast('Blocked — open modal for instructions');
+      showNotifModal();
+    } else {
+      showToast('Permission not granted');
+    }
+  } catch(e) {
+    console.warn('Notification permission error:', e);
+    showToast('Permission request failed');
+    showNotifModal();
+  }
+}
+
+/** Show a tiny test notification after granting permission */
+function sendTestNotif() {
+  try {
+    var n = new Notification('🍅 Focus Timer', { body: 'Notifications are working!', tag: 'focus-test', silent: true });
+    setTimeout(function(){ try{ n.close(); }catch(e){} }, 3000);
+  } catch(e) {}
+}
+
+/**
+ * Send a pomodoro completion notification.
+ * Fixes for cross-browser:
+ *   - No `renotify` (Safari rejects it without a service worker)
+ *   - No `requireInteraction` (not supported in Safari)
+ *   - Wrap in try/catch for Brave Shields silently throwing
+ */
+function sendPush() {
+  if (!settings.notifications) return;
+  if (!('Notification' in window)) return;
+  if (Notification.permission !== 'granted') return;
+  var msgs = {
+    pomodoro:   { title: '🍅 Pomodoro Complete!', body: 'Take a break — you earned it.' },
+    shortBreak: { title: '☕ Short Break Over!',  body: 'Ready to focus again?' },
+    longBreak:  { title: '🛌 Long Break Over!',   body: 'New cycle is starting!' }
+  };
+  var m = msgs[state.phase] || msgs.pomodoro;
+  // Use a timestamp-based tag so each notification shows uniquely
+  // (avoids Brave silently replacing identical-tag notifications)
+  var opts = { body: m.body, tag: 'focus-' + Date.now(), silent: false };
+  try {
+    new Notification(m.title, opts);
+  } catch(e) {
+    // Brave Shields may throw — silently ignore
+    console.warn('Notification blocked by browser:', e);
+  }
+}
+
+/* ─── NOTIFICATION SETUP MODAL ──────────────────────────────────────── */
+function showNotifModal() {
+  renderPermBadge();
+  var cap  = getNotifCapability();
+  var perm = ('Notification' in window) ? Notification.permission : 'N/A';
+  var body = document.getElementById('nModalBody');
+  var title= document.getElementById('nModalTitle');
+  var sub  = document.getElementById('nModalSub');
+  var action = document.getElementById('nModalAction');
+  title.textContent = 'NOTIFICATIONS';
+
+  // ── iOS browser (not installed as PWA) ─────────────────────────────
+  if (cap.reason === 'ios-browser') {
+    sub.textContent = 'Safari on iOS only supports notifications when the app is installed.';
+    body.innerHTML =
+      '<div class="nBrowserLabel">🍎 iPhone / iPad — Enable Steps</div>' +
+      step(1, 'Add to Home Screen', 'Tap the Share icon (□↑) in Safari, then tap "Add to Home Screen"') +
+      step(2, 'Open the installed app', 'Launch Focus from your Home Screen (not Safari)') +
+      step(3, 'Enable notifications', 'Come back to Settings → tap the toggle again') +
+      '<div class="nWarn"><strong>Note:</strong> Requires iOS 16.4 or later. Web push is not available in iOS Safari\'s browser tab.</div>';
+    action.textContent = 'Got it';
+    action.onclick = closeNotifModal;
+  }
+  // ── iOS PWA but too old ─────────────────────────────────────────────
+  else if (cap.reason === 'ios-pwa-old') {
+    sub.textContent = 'Your iOS version does not support web push notifications.';
+    body.innerHTML =
+      '<div class="nWarn"><strong>Requires iOS 16.4+</strong><br>Go to Settings → General → Software Update to upgrade.</div>';
+    action.textContent = 'Got it';
+    action.onclick = closeNotifModal;
+  }
+  // ── Brave browser ──────────────────────────────────────────────────
+  else if (cap.brave) {
+    if (perm === 'denied') {
+      sub.textContent = 'Brave has blocked notifications for this site. Unblock it:';
+      body.innerHTML =
+        '<div class="nBrowserLabel">🦁 Brave — Unblock Notifications</div>' +
+        step(1, 'Click the Brave Shield', 'Click the lion icon (🦁) in the address bar') +
+        step(2, 'Advanced Controls', 'Scroll down and tap "Advanced Controls"') +
+        step(3, 'Allow Notifications', 'Set Notifications to "Allow"') +
+        step(4, 'Reload the page', 'Refresh and tap the toggle again') +
+        '<div class="nBrowserLabel">— or — Site Settings</div>' +
+        step('🔒', 'Lock icon in address bar', 'Tap 🔒 → Site Settings → Notifications → Allow') +
+        '<div class="nWarn"><strong>Brave Shields tip:</strong> If Shields are set to "Aggressive", notifications may still be blocked. Try setting Shields to "Standard" for this site.</div>';
+      action.textContent = 'Try Again';
+      action.onclick = function(){ closeNotifModal(); handleNotifToggle(); };
+    } else {
+      sub.textContent = 'Brave may block notifications via Shields. Allow them when prompted:';
+      body.innerHTML =
+        '<div class="nBrowserLabel">🦁 Brave — Quick Setup</div>' +
+        step(1, 'Click Enable below', 'A browser permission popup should appear') +
+        step(2, 'Click Allow', 'In Brave\'s notification permission dialog, click Allow') +
+        step(3, 'If no popup appeared', 'Check the address bar for a blocked icon (🔔 with ✕)') +
+        '<div class="nWarn"><strong>Brave Shields:</strong> If enabled, open the Shields panel (🦁 icon) → Advanced Controls → set Notifications to Allow.</div>';
+      action.textContent = 'Enable Notifications';
+      action.onclick = function(){ closeNotifModal(); handleNotifToggle(); };
+    }
+  }
+  // ── Safari macOS ───────────────────────────────────────────────────
+  else if (cap.isSafari) {
+    if (perm === 'denied') {
+      sub.textContent = 'Safari has blocked notifications. Re-enable them:';
+      body.innerHTML =
+        '<div class="nBrowserLabel">🍎 Safari macOS — Unblock</div>' +
+        step(1, 'Open Safari Preferences', 'Safari menu → Settings (⌘,) → Websites tab') +
+        step(2, 'Find Notifications', 'Click "Notifications" in the left sidebar') +
+        step(3, 'Allow this site', 'Find this site and change "Deny" to "Allow"') +
+        step(4, 'Reload and retry', 'Refresh the page and tap the toggle again');
+      action.textContent = 'Try Again';
+      action.onclick = function(){ closeNotifModal(); handleNotifToggle(); };
+    } else {
+      sub.textContent = 'Safari supports notifications. Allow them when the browser asks:';
+      body.innerHTML =
+        '<div class="nBrowserLabel">🍎 Safari — Quick Setup</div>' +
+        step(1, 'Click Enable below', 'Safari will show a permission popup at the top') +
+        step(2, 'Click Allow', 'In the notification permission dialog, click Allow') +
+        step(3, 'If blocked', 'Safari menu → Settings → Websites → Notifications → set to Allow') +
+        '<div class="nWarn"><strong>Safari note:</strong> Notifications work in both browser tab and when added to the Dock as a Web App (File → Add to Dock).</div>';
+      action.textContent = 'Enable Notifications';
+      action.onclick = function(){ closeNotifModal(); handleNotifToggle(); };
+    }
+  }
+  // ── Permission denied in Chrome/Firefox ────────────────────────────
+  else if (perm === 'denied') {
+    sub.textContent = 'Your browser has blocked notifications. Here\'s how to unblock:';
+    body.innerHTML =
+      '<div class="nBrowserLabel">🔒 Chrome — Unblock</div>' +
+      step(1, 'Click the lock icon', 'Click 🔒 in the address bar') +
+      step(2, 'Site Settings', 'Click "Site Settings"') +
+      step(3, 'Notifications → Allow', 'Find Notifications and set it to "Allow"') +
+      step(4, 'Reload page', 'Refresh and tap the toggle again') +
+      '<div class="nBrowserLabel">🦊 Firefox — Unblock</div>' +
+      step(1, 'Click the shield icon', 'Click 🛡 in the address bar') +
+      step(2, 'Permissions', 'Click the ✕ next to "Block Notifications"') +
+      step(3, 'Reload page', 'Refresh and tap the toggle again');
+    action.textContent = 'Try Again';
+    action.onclick = function(){ closeNotifModal(); handleNotifToggle(); };
+  }
+  // ── Normal flow ────────────────────────────────────────────────────
+  else {
+    sub.textContent = 'Your browser will ask for permission. Here\'s what to do:';
+    body.innerHTML =
+      '<div class="nBrowserLabel">🔔 Enable Notifications</div>' +
+      step(1, 'Click Enable below', 'A browser permission popup will appear') +
+      step(2, 'Click Allow', 'Grant permission when your browser asks') +
+      step(3, 'Done!', 'You\'ll get alerts when pomodoros and breaks finish') +
+      '<div class="nWarn"><strong>Tip:</strong> Notifications still work even if this tab is in the background or another app is open.</div>';
+    action.textContent = 'Enable Notifications';
+    action.onclick = function(){ closeNotifModal(); handleNotifToggle(); };
+  }
+
+  document.getElementById('notifModal').classList.add('show');
+}
+
+function step(n, title, desc) {
+  return '<div class="nStep"><span class="nNum">' + n + '</span><div><strong>' + title + '</strong>' + desc + '</div></div>';
+}
+
+function closeNotifModal(evt) {
+  // Close if clicking the backdrop (not the sheet itself)
+  if (evt && evt.target !== document.getElementById('notifModal')) return;
+  document.getElementById('notifModal').classList.remove('show');
+}
+function applySettings(){ saveSettings(); if(state.status==='idle'){resetStateToPhase();updateTimerDisplay();} renderGoalBar(); switchTab('timer'); showToast('Settings saved'); }
+
+/* ─── CUSTOM AUDIO ─── */
+/* ════════════════════════════════════════════════════════════════
+   CUSTOM AUDIO  (Windows / macOS browsers · Android · iOS Safari & PWA)
+
+   Why this is built the way it is:
+
+   1. STORAGE — files are stored in IndexedDB as raw ArrayBuffers (not
+      File/Blob objects, which older iOS builds failed to persist) and
+      are rebuilt into Blobs with an explicit, normalised MIME type.
+      Phones frequently report an empty or non-standard type
+      (audio/x-m4a, "" for .opus, …), so the type is derived from the
+      file extension first.
+
+   2. NOTHING ASYNC AT PLAY TIME — iOS only lets an <audio> element or
+      AudioContext start from a user gesture. So everything is loaded
+      into memory at startup (loadCustomAudio) and both elements are
+      "unlocked" on the first tap (unlockAudio). After that the timer
+      can start music / fire the end-of-timer sound with no gesture.
+
+   3. NOTIFICATION SOUND — played through Web Audio (decoded buffer +
+      GainNode) so the Volume slider works everywhere, including iOS
+      where HTMLMediaElement.volume is ignored. If the buffer is not
+      ready or the context is suspended, it falls back to a persistent,
+      already-unlocked <audio> element.
+
+   4. BACKGROUND MUSIC — a persistent <audio> element streaming the
+      Blob URL (keeps playing with the screen locked). A single track
+      loops natively; multiple tracks advance on 'ended'. URLs are never
+      revoked while in use.
+   ════════════════════════════════════════════════════════════════ */
+
+const IS_IOS = /iPad|iPhone|iPod/.test(navigator.userAgent)
+            || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+
+const AUDIO_MIME_BY_EXT = {
+  mp3:'audio/mpeg', m4a:'audio/mp4', mp4:'audio/mp4', aac:'audio/aac',
+  wav:'audio/wav', wave:'audio/wav', ogg:'audio/ogg', oga:'audio/ogg',
+  opus:'audio/ogg; codecs=opus', flac:'audio/flac', weba:'audio/webm',
+  webm:'audio/webm', caf:'audio/x-caf', aif:'audio/aiff', aiff:'audio/aiff'
+};
+const MAX_DECODE_BYTES  = 6  * 1024 * 1024;  // not a limit on adding: bigger notification files just stream via <audio> instead of Web Audio
+
+let customItems   = [];     // [{key,name,type,size,blob,url,buffer?,bufP?}]
+let customReady   = false;  // true once loadCustomAudio() has finished at least once
+let _loadToken    = 0;
+let _addBusy      = false;
+let _lastAddErr   = '';     // last save problem, shown under 'Custom audio' until the next attempt
+let notifEl       = null;   // persistent <audio> for the notification fallback
+let notifIdx      = 0;
+let bgIdx         = 0, bgFails = 0, bgBlocked = false, bgPendingStart = false;
+let _bgAttempt = 0, _bgFailed = false;
+let _bgIntent     = false, _bgRecover = 0, _bgLastErr = '';   // intent: the timer WANTS music playing right now
+let _volOK;                 // does HTMLMediaElement.volume actually work here?
+
+/* ── helpers ─────────────────────────────────────────────────────── */
+function isIOS(){
+  const ua = navigator.userAgent || '';
+  return /iP(hone|ad|od)/.test(ua) || (/Macintosh/.test(ua) && (navigator.maxTouchPoints || 0) > 1);
+}
+/* iOS mutes Web Audio when the ring/silent switch is on, but not media-element playback; asking for the
+   'playback' session (Safari 16.4+) makes everything audible regardless of the switch. */
+function setPlaybackSession(){
+  try{ if(navigator.audioSession && navigator.audioSession.type !== 'playback') navigator.audioSession.type = 'playback'; }catch(e){}
+}
+function elementVolumeWorks(){
+  if(_volOK !== undefined) return _volOK;
+  try{ const a = new Audio(); a.volume = 0.5; _volOK = (a.volume === 0.5); }
+  catch(e){ _volOK = true; }
+  return _volOK;
+}
+
+function readFileBuffer(f){
+  if(f.arrayBuffer) return f.arrayBuffer();
+  return new Promise((res, rej) => {
+    const r = new FileReader();
+    r.onload  = () => res(r.result);
+    r.onerror = () => rej(r.error);
+    r.readAsArrayBuffer(f);
+  });
+}
+
+/* Best MIME for a picked file. Extension wins over empty/odd reported types. */
+function audioMimeFor(file){
+  const t   = (file.type || '').toLowerCase();
+  const ext = ((file.name || '').split('.').pop() || '').toLowerCase();
+  if(t === 'audio/x-m4a' || t === 'audio/m4a' || t === 'audio/x-mp4') return 'audio/mp4';
+  if(t === 'audio/mp3'   || t === 'audio/x-mp3' || t === 'audio/mpeg3') return 'audio/mpeg';
+  if(t === 'audio/x-wav' || t === 'audio/wave'  || t === 'audio/vnd.wave') return 'audio/wav';
+  if(AUDIO_MIME_BY_EXT[ext]) return AUDIO_MIME_BY_EXT[ext];
+  if(t.indexOf('audio/') === 0) return t;
+  return '';
+}
+function canPlayMime(mime){
+  try{ return !!document.createElement('audio').canPlayType(mime); }catch(e){ return true; }
+}
+
+/* ── IndexedDB ───────────────────────────────────────────────────── */
+let _idb = null;
+function openIDB(){
+  if(_idb) return Promise.resolve(_idb);
+  return new Promise((resolve, reject) => {
+    if(!window.indexedDB){ reject(new Error('IndexedDB unavailable')); return; }
+    const req = indexedDB.open('pomo_audio', 1);
+    req.onupgradeneeded = e => { e.target.result.createObjectStore('files', { keyPath:'name' }); };
+    req.onsuccess = e => {
+      _idb = e.target.result;
+      _idb.onclose = () => { _idb = null; };
+      _idb.onversionchange = () => { try{ _idb.close(); }catch(_){} _idb = null; };
+      resolve(_idb);
+    };
+    req.onerror   = e => reject(e.target.error);
+    req.onblocked = () => reject(new Error('IndexedDB blocked'));
+  });
+}
+function idbReset(){ try{ if(_idb) _idb.close(); }catch(e){} _idb = null; }
+function idbRun(mode, fn){
+  const attempt = () => openIDB().then(db => new Promise((resolve, reject) => {
+    let tx, req;
+    try{ tx = db.transaction('files', mode); req = fn(tx.objectStore('files')); }
+    catch(e){ reject(e); return; }                       // e.g. InvalidStateError on a stale connection
+    tx.oncomplete = () => resolve(req && req.result);
+    tx.onerror    = () => reject(tx.error || (req && req.error));
+    tx.onabort    = () => reject(tx.error || (req && req.error) || new Error('IndexedDB transaction aborted'));
+  }));
+  return attempt().catch(err => {
+    /* iOS invalidates open IndexedDB connections when Safari is backgrounded (for instance while the
+       Files picker is open). Reopen once and retry before giving up. */
+    if(err && (err.name === 'InvalidStateError' || err.name === 'UnknownError' || /clos|connection/i.test(err.message || ''))){
+      idbReset();
+      return attempt();
+    }
+    throw err;
+  });
+}
+const idbPutRec = rec => idbRun('readwrite', s => s.put(rec));
+const idbGetAll = ()                => idbRun('readonly',  s => s.getAll()).then(r => r || []);
+/* A file is stored as small ArrayBuffer chunks (key + NUL + index) plus a manifest record written last.
+   Small plain-bytes records avoid the Blob/File storage path that iOS Safari fails on
+   ("Error preparing Blob/File data to be stored in object store"). */
+const chunkKey = (key, i) => key + '\u0000' + String(i).padStart(6, '0');
+const idbDeleteFile = key => idbRun('readwrite', s => s.delete(IDBKeyRange.bound(key, key + '\u0000\uffff')));
+const sessionBlobs = new Map();   // key -> Blob kept in memory when the file could not be saved to storage
+
+/* Rebuild a Blob from a stored record (new format: ArrayBuffer; legacy: Blob). */
+function recordToBlob(rec, fallbackType, byKey){
+  const type = (rec.type || fallbackType || 'audio/mpeg').split(';')[0];
+  if(rec.chunks){
+    const parts = [];
+    for(let i = 0; i < rec.chunks; i++){
+      const c = byKey && byKey.get(chunkKey(rec.name, i));
+      if(!c || !c.data) return null;            // incomplete write — treat as missing
+      parts.push(c.data);
+    }
+    return new Blob(parts, { type });
+  }
+  if(rec.data) return new Blob([rec.data], { type });
+  if(rec.blob) return rec.blob.type ? rec.blob : rec.blob.slice(0, rec.blob.size, type);
+  return null;
+}
+
+function requestPersistentStorage(){
+  try{ if(navigator.storage && navigator.storage.persist) navigator.storage.persist().catch(()=>{}); }catch(e){}
+}
+
+/* ── Load everything into memory (async is fine here — no gesture needed) ── */
+async function loadCustomAudio(){
+  const tok = ++_loadToken;
+  const metas = settings.customSoundFiles || [];
+
+  /* Anything playing is about to lose its URL — stop cleanly first. */
+  bgMusicStop();
+  customItems.forEach(it => { try{ URL.revokeObjectURL(it.url); }catch(e){} });
+  customItems = [];
+  customReady = false;
+
+  let rows = null;
+  if(metas.length){
+    try{ rows = await idbGetAll(); }catch(e){ console.warn('Custom audio: IndexedDB read failed', e); }
+    if(tok !== _loadToken) return;            // a newer load superseded this one
+  }
+
+  const items = [], kept = [];
+  if(rows){
+    const byKey = new Map(rows.map(r => [r.name, r]));
+    metas.forEach(m => {
+      const key  = m.key || m.name;             // legacy entries were keyed by file name
+      const rec  = byKey.get(key);
+      const blob = (rec && recordToBlob(rec, m.type, byKey)) || sessionBlobs.get(key);
+      if(blob){
+        items.push({ key, name:m.name, type:blob.type, size:blob.size, blob, url:URL.createObjectURL(blob) });
+        kept.push(m);
+      }
+    });
+    if(kept.length !== metas.length){
+      /* Files the browser/OS evicted — forget them so the list is honest. */
+      settings.customSoundFiles = kept;
+      if(!kept.length && settings.selectedSound === 'custom') settings.selectedSound = 'bell';
+      saveSettings();
+      const lost = metas.filter(m => kept.indexOf(m) < 0 && !m.mem).length;   // 'this session only' files vanish by design
+      if(lost) showToast(lost + ' audio file(s) were cleared by the browser — please re-add');
+    }
+  } else if(metas.length){
+    /* Could not read storage at all (e.g. private mode). Keep metadata; only in-memory files are playable. */
+    metas.forEach(m => {
+      const key = m.key || m.name, blob = sessionBlobs.get(key);
+      if(blob) items.push({ key, name:m.name, type:blob.type, size:blob.size, blob, url:URL.createObjectURL(blob) });
+    });
+    showToast('Could not read saved audio on this device');
+  }
+
+  customItems = items;
+  customReady = true;
+  bgIdx = 0; bgFails = 0;
+  const sel = document.getElementById('soundSelect');
+  if(sel) sel.value = settings.selectedSound;
+  updateCustomSub(); renderCustomFiles();
+
+  if(audioCtx) decodeAllNotif();
+  /* If the timer is mid-focus in background mode (page reload / file change), restart music. */
+  if(state.status === 'running' && state.phase === 'pomodoro') bgMusicStart();
+  else if(bgPendingStart){ bgPendingStart = false; }
+}
+
+function updateCustomSub(){
+  const sub = document.getElementById('customSoundSub');
+  if(!sub) return;
+  const n = (settings.customSoundFiles || []).length;
+  if(_lastAddErr){ sub.style.color = '#e5645a'; sub.textContent = _lastAddErr; return; }
+  sub.style.color = '';
+  sub.textContent = n ? n + ' file(s) saved on this device' : 'No files loaded';
+}
+
+/* ── Adding / removing files ─────────────────────────────────────── */
+async function handleAudioFileInput(input){
+  const files = Array.from(input.files || []);
+  input.value = '';                   // allow re-picking the same file
+  if(files.length) await addCustomFiles(files);
+}
+
+function errReason(e){
+  if(!e) return 'unknown error';
+  if(e.name === 'QuotaExceededError') return 'device storage full';
+  return ((e.name || 'Error') + (e.message ? ': ' + e.message : '')).slice(0, 140);
+}
+const SAVE_CHUNKS = [2 * 1024 * 1024, 256 * 1024];     // try 2 MB chunks, then 256 KB ones
+
+function readSlice(file, a, b){
+  const part = file.slice(a, b);
+  const viaReader = () => new Promise((res, rej) => {
+    const r = new FileReader();
+    r.onload  = () => res(r.result);
+    r.onerror = () => rej(r.error || new Error('file read failed'));
+    r.readAsArrayBuffer(part);
+  });
+  if(part.arrayBuffer) return part.arrayBuffer().catch(viaReader);
+  return viaReader();
+}
+async function saveChunked(key, file, type, chunk){
+  const n = Math.max(1, Math.ceil(file.size / chunk));
+  try{
+    for(let i = 0; i < n; i++){
+      const buf = await readSlice(file, i * chunk, Math.min(file.size, (i + 1) * chunk));
+      await idbPutRec({ name:chunkKey(key, i), data:buf });
+    }
+    await idbPutRec({ name:key, chunks:n, size:file.size, type });   // manifest last = the commit
+  }catch(e){ try{ await idbDeleteFile(key); }catch(_){} throw e; }
+}
+/* Persist one picked file. Returns true when stored on the device, false when it only lives in memory for
+   this session. Throws (with .reasons) when it could not even be read. */
+async function saveAudioFile(key, file, type){
+  const errs = [];
+  for(const size of SAVE_CHUNKS){
+    try{ await saveChunked(key, file, type, size); return true; }
+    catch(e){ errs.push(e); if(e && e.name === 'QuotaExceededError') break; }
+  }
+  if(!errs.some(e => e && e.name === 'QuotaExceededError')){
+    try{ await idbPutRec({ name:key, blob:file.slice(0, file.size, type), type }); return true; }   // last resort
+    catch(e){ errs.push(e); }
+  }
+  /* Could not be stored. If the file itself is readable, keep it for this session so it still plays. */
+  let readable = true;
+  try{ await readSlice(file, 0, Math.min(file.size, 4096)); }catch(e){ readable = false; errs.push(e); }
+  if(readable && file.size > 0){
+    sessionBlobs.set(key, file.slice(0, file.size, type));
+    const e = new Error(errReason(errs[0])); e.sessionOnly = true; throw e;
+  }
+  const e = new Error(errReason(errs[0])); e.unreadable = !readable; throw e;
+}
+
+/* Can this device actually decode the file? Resolves {ok, code, dur}. */
+function probeAudio(blob){
+  return new Promise(function(resolve){
+    const a = new Audio(), url = URL.createObjectURL(blob);
+    let done = false;
+    const fin = function(r){ if(done) return; done = true; clearTimeout(tm); a.removeAttribute('src'); try{ a.load(); }catch(e){} URL.revokeObjectURL(url); resolve(r); };
+    const tm = setTimeout(function(){ fin({ ok:true, dur:NaN, slow:true }); }, 2500);   // slow isn't a failure
+    a.preload = 'metadata';
+    a.addEventListener('loadedmetadata', function(){ fin({ ok:true, dur:a.duration }); });
+    a.addEventListener('error', function(){ fin({ ok:false, code:a.error && a.error.code }); });
+    a.src = url;
+    try{ a.load(); }catch(e){}
+  });
+}
+
+async function addCustomFiles(files){
+  if(_addBusy) return;
+  _addBusy = true;
+  try{
+    showToast('Saving audio…');
+    const existing = settings.customSoundFiles || [];
+    const added = [], skipped = [], memOnly = [], unplayable = [];
+    _lastAddErr = '';
+
+    for(const f of files){
+      if(existing.concat(added).some(m => m.name === f.name && m.size === f.size)) continue;  // already added
+      const mime = audioMimeFor(f);
+      if(!mime){ skipped.push(f.name + ' (not an audio file)'); continue; }
+      if(!canPlayMime(mime)){ skipped.push(f.name + ' (format not supported on this device — try MP3 or M4A)'); continue; }
+      const type = mime.split(';')[0];
+      const key  = Date.now().toString(36) + '_' + added.length + '_' + f.name;
+      try{
+        await saveAudioFile(key, f, type);
+        added.push({ key, name:f.name, type, size:f.size });
+      }catch(e){
+        console.warn('Saving audio failed for', f.name, e);
+        if(e && e.sessionOnly){
+          added.push({ key, name:f.name, type, size:f.size, mem:true });
+          memOnly.push(f.name + ' — ' + e.message);
+        }else if(e && e.unreadable){
+          skipped.push(f.name + ' (the phone would not let the page read this file — ' + e.message + '. Save it to "On My iPhone" and pick it again)');
+        }else{
+          skipped.push(f.name + ' (could not be saved — ' + errReason(e) + ')');
+        }
+      }
+    }
+
+    if(added.length){
+      settings.customSoundFiles = existing.concat(added);
+      settings.selectedSound = 'custom';
+      saveSettings();
+      await loadCustomAudio();
+      unlockAudio();                   // we are still inside the pick gesture on most browsers
+      for(const m of added){
+        const it = customItems.find(function(x){ return x.key === m.key; });
+        if(!it) continue;
+        const r = await probeAudio(it.blob);
+        if(!r.ok){ unplayable.push(m.name + ' (media error ' + r.code + ')'); }
+      }
+    }
+    if(memOnly.length){
+      _lastAddErr = 'Playing for this session only — the phone refused to store it (' + memOnly[0] + ')';
+      updateCustomSub();
+    }else if(skipped.length && !added.length){
+      _lastAddErr = skipped[0];
+      updateCustomSub();
+    }
+    if(unplayable.length){
+      _lastAddErr = "Saved, but this phone can't play " + unplayable.join(', ') + ' — try an MP3 or a normal M4A';
+      updateCustomSub();
+      showToast(_lastAddErr, 9000);
+    }else if(memOnly.length)            showToast('Added, but only until you close the app — storage was refused: ' + memOnly.join('; '), 9000);
+    else if(added.length && !skipped.length) showToast(added.length + ' audio file(s) saved ✓');
+    else if(added.length)               showToast(added.length + ' saved · skipped: ' + skipped.join(', '), 9000);
+    else if(skipped.length)             showToast('Not added: ' + skipped.join(', '), 9000);
+    else                                showToast('Those files are already added');
+  }finally{ _addBusy = false; }
+}
+
+async function removeCustomFile(i){
+  const metas = settings.customSoundFiles || [];
+  const m = metas[i];
+  if(!m) return;
+  metas.splice(i, 1);
+  sessionBlobs.delete(m.key || m.name);
+  try{ await idbDeleteFile(m.key || m.name); }catch(e){}
+  if(!metas.length){
+    settings.selectedSound = 'bell';
+    const sel = document.getElementById('soundSelect');
+    if(sel) sel.value = 'bell';
+  }
+  saveSettings();
+  await loadCustomAudio();
+}
+
+function renderCustomFiles(){
+  const host = document.getElementById('customFileList');
+  if(!host) return;
+  host.textContent = '';
+  const metas = settings.customSoundFiles || [];
+  if(!metas.length) return;
+  const wrap = document.createElement('div');
+  wrap.className = 'customFiles';
+  metas.forEach((f, i) => {
+    const row  = document.createElement('div');
+    row.className = 'cFile';
+    const name = document.createElement('span');
+    name.className = 'cFileName';
+    name.textContent = f.name + (f.mem ? ' · this session only' : '');           // textContent: file names are untrusted
+    const rm = document.createElement('span');
+    rm.className = 'cFileRm';
+    rm.textContent = '✕';
+    rm.setAttribute('role', 'button');
+    rm.setAttribute('aria-label', 'Remove ' + f.name);
+    rm.tabIndex = 0;
+    rm.addEventListener('click', () => removeCustomFile(i));
+    rm.addEventListener('keydown', e => { if(e.key === 'Enter' || e.key === ' '){ e.preventDefault(); removeCustomFile(i); } });
+    row.appendChild(name); row.appendChild(rm);
+    wrap.appendChild(row);
+  });
+  host.appendChild(wrap);
+}
+
+/* ═══ SLIDER FILL — shows how far each range input is set ═══ */
+function paintSlider(el){
+  const min = parseFloat(el.min) || 0, max = parseFloat(el.max) || 1;
+  el.style.setProperty('--pct', (((parseFloat(el.value) - min) / (max - min)) * 100) + '%');
+}
+function paintAllSliders(){ document.querySelectorAll('input[type=range]').forEach(paintSlider); }
+document.addEventListener('input', function(e){ if(e.target && e.target.type === 'range') paintSlider(e.target); });
+
+/* ═══ WEB AUDIO CONTEXT ═══ */
+function initAudio(){
+  setPlaybackSession();
+  if(audioCtx) return audioCtx;
+  try{
+    const AC = window.AudioContext || window.webkitAudioContext;
+    if(!AC) return null;
+    audioCtx = new AC();
+    audioCtx._stateWired = true;
+    audioCtx.addEventListener('statechange', function(){
+      /* iOS reports 'interrupted' (phone call, lock); browsers may 'suspend' it. */
+      if(audioCtx.state !== 'running' && state.status === 'running') audioCtx.resume().catch(function(){});
+    });
+  }catch(e){ audioCtx = null; }
+  return audioCtx;
+}
+function ensureAudioCtx(){
+  const c = initAudio();
+  if(c && c.state !== 'running') c.resume().catch(function(){});
+  return c;
+}
+
+/* ═══ UNLOCK — runs on the first user gesture(s) ═══ */
+function ensureNotifEl(){
+  if(notifEl) return notifEl;
+  notifEl = document.createElement('audio');
+  notifEl.setAttribute('playsinline', '');
+  notifEl.setAttribute('webkit-playsinline', '');
+  notifEl.setAttribute('x-webkit-airplay', 'deny');
+  notifEl.preload = 'auto';
+  notifEl.addEventListener('error', function(){
+    if(!notifEl._real || notifEl.src !== notifEl._real) return;   // we cleared/replaced the src ourselves
+    const code = notifEl.error && notifEl.error.code;
+    const it = customItems.find(function(x){ return x.url === notifEl._real; });
+    showToast("This phone can't play " + (it ? it.name : 'that file') + ' (media error ' + code + (code === 4 ? ': unsupported format' : '') + '). Try an MP3.', 7000);
+  });
+  document.body.appendChild(notifEl);
+  return notifEl;
+}
+
+/* Play a silent clip inside a gesture so the element may play programmatically later. */
+function unlockEl(el){
+  if(!el || el._unlocked || el._unlocking || el._tried) return;
+  if(!el.paused && el.src && el.src !== SILENT_SRC) return;      // real audio is playing — never clobber it
+  el._tried = true;                    // WebKit lifts the gesture requirement when play() is *called* inside a gesture
+  el._unlocking = true;
+  const done = function(){ el._unlocking = false; };
+  try{
+    el.src = SILENT_SRC;
+    const p = el.play();
+    if(p && p.then){
+      p.then(function(){
+        el._unlocked = true;
+        if(el.src === SILENT_SRC){            // only stop it if it is still the silent clip
+          el.pause();
+          try{ el.currentTime = 0; }catch(e){}
+          el.removeAttribute('src'); el.load();
+        }
+        done();
+        /* the unlock clip briefly took iOS's single audio slot — hand it back to the lock-screen clip */
+        if(state.status === 'running' && !musicOwnsSession() && silentAudioEl && silentAudioEl.paused) silentAudioEl.play().catch(function(){});
+      }).catch(function(){ done(); });
+    } else { el._unlocked = true; done(); }
+  }catch(e){ done(); }
+}
+
+/* iOS plays only ONE media element at a time (a newer one pauses the older), so unlock just the element the
+   current mode will use — never several silent clips at once, and never while real audio is playing. */
+function unlockTarget(){ return settings.customSoundMode === 'background' ? bgAudio : notifEl; }
+function allAudioUnlocked(){
+  const el = unlockTarget();
+  return !!(audioCtx && audioCtx.state === 'running' && el && (el._tried || el._unlocked));
+}
+
+function unlockAudio(){
+  if(audioCtx && audioCtx.state !== 'running') audioCtx.resume().catch(function(){});
+  if(bgBlocked && state.status === 'running' && state.phase === 'pomodoro'){ bgBlocked = false; bgMusicResume(); }
+  if(allAudioUnlocked()) return;
+
+  prewarmAudio();                       // silent keep-alive <audio> (lock-screen support)
+  ensureAudioCtx();
+  ensureNotifEl();
+  ensureBgAudio();
+  try{                                  // 1-frame buffer: classic iOS context unlock
+    const b = audioCtx.createBuffer(1, 1, 22050), s = audioCtx.createBufferSource();
+    s.buffer = b; s.connect(audioCtx.destination); s.start(0);
+  }catch(e){}
+  unlockEl(unlockTarget());
+  decodeAllNotif();
+}
+/* touchend/click are what iOS counts as activation (touchstart is not). Kept for the page's lifetime:
+   cheap early-return once unlocked, and re-resumes the context after iOS suspends it. */
+['touchend', 'pointerup', 'click', 'keydown'].forEach(function(ev){
+  document.addEventListener(ev, unlockAudio, { passive:true });
+});
+
+/* ═══ NOTIFICATION SOUND ═══ */
+function blobToBuffer(blob){ return readFileBuffer(blob); }
+
+function decodeNotif(it){
+  if(it.bufP || !audioCtx || it.size > MAX_DECODE_BYTES) return it.bufP;
+  it.bufP = blobToBuffer(it.blob).then(function(ab){
+    return new Promise(function(res, rej){
+      const p = audioCtx.decodeAudioData(ab, res, rej);   // callback form for old Safari…
+      if(p && p.then) p.then(res, rej);                   // …promise form elsewhere
+    });
+  }).then(function(buf){ it.buffer = buf; return buf; })
+    .catch(function(e){ console.warn('Decode failed (will stream instead):', it.name, e); });
+  return it.bufP;
+}
+function decodeAllNotif(){
+  if(!audioCtx || settings.customSoundMode === 'background') return;
+  customItems.forEach(decodeNotif);
+}
+
+/* Returns true if a custom sound was started. */
+let _notifVia = '';
+function playCustomNotification(){
+  if(!customItems.length) return false;
+  const it = customItems[notifIdx++ % customItems.length];
+
+  /* iPhone: use the media element (not muted by the silent switch, no decode step). Elsewhere Web Audio is
+     preferred because it starts instantly and honours the volume setting. */
+  if(!isIOS() && audioCtx && audioCtx.state === 'running' && it.buffer){
+    try{
+      const src = audioCtx.createBufferSource(), g = audioCtx.createGain();
+      src.buffer = it.buffer;
+      g.gain.value = settings.soundVolume;
+      src.connect(g); g.connect(audioCtx.destination);
+      src.start();
+      _notifVia = 'webaudio';
+      return true;
+    }catch(e){ console.warn('Web Audio playback failed, falling back', e); }
+  }
+  if(audioCtx && audioCtx.state !== 'running') audioCtx.resume().catch(function(){});
+
+  const el = ensureNotifEl();
+  try{
+    setPlaybackSession();
+    el._real = it.url;
+    el.src = it.url;
+    el.volume = settings.soundVolume;       // ignored on iOS, fine elsewhere
+    const p = el.play();
+    if(p && p.then) p.then(function(){ el._unlocked = true; _notifVia = 'element'; }).catch(function(err){
+      if(err && err.name === 'AbortError') return;
+      console.warn('Notification audio blocked:', err && err.name);
+      showToast('Could not play ' + it.name + ' — ' + (err && err.name === 'NotAllowedError' ? 'tap the screen once, then press Test again' : errReason(err)), 6000);
+    });
+    return true;
+  }catch(e){
+    showToast('Could not play ' + it.name + ' — ' + errReason(e), 6000);
+    return false;
+  }
+}
+
+function playNotif(preview){
+  if(!settings.soundEnabled && !preview) return;
+  ensureAudioCtx();
+  /* In Background-Music mode the music is the custom audio; the end-of-timer alert stays a built-in tone. */
+  const customOK = settings.selectedSound === 'custom' && customItems.length
+                && (settings.customSoundMode !== 'background' || preview === true);
+  if(customOK && playCustomNotification()) return;
+  if(!audioCtx) return;
+  const v   = settings.soundVolume;
+  const map = { bell:()=>playBell(v), digital:()=>playDigi(v), chime:()=>playChime(v), soft:()=>playSoft(v) };
+  (map[settings.selectedSound] || map.bell)();
+}
+function previewSound(){
+  unlockAudio(); setPlaybackSession();
+  if(bgAudio && bgAudio._track && !bgAudio.paused){ _bgIntent = false; }   // the preview takes iOS's one audio slot; ▶ resumes the music
+  playNotif(true);
+  if(settings.selectedSound === 'custom' && customItems.length){
+    setTimeout(function(){
+      if(_notifVia === 'element' && notifEl && notifEl.paused && !notifEl.ended && !notifEl.error)
+        showToast('Nothing is playing — tap Test again (iOS needs a tap first)', 5000);
+    }, 1800);
+  }
+}
+
+/* ── built-in synthesised tones ── */
+function playBell(v=.7){ const c=audioCtx,t=c.currentTime; [880,1100,1320].forEach((f,i)=>{ const o=c.createOscillator(),g=c.createGain(); o.connect(g);g.connect(c.destination); o.frequency.value=f;o.type='sine'; const ts=t+i*.18; g.gain.setValueAtTime(0,ts);g.gain.linearRampToValueAtTime(v*.35,ts+.01);g.gain.exponentialRampToValueAtTime(.0001,ts+1.4); o.start(ts);o.stop(ts+1.4); }); }
+function playDigi(v=.7){ const c=audioCtx,t=c.currentTime; for(let i=0;i<3;i++){ const o=c.createOscillator(),g=c.createGain();o.connect(g);g.connect(c.destination);o.frequency.value=880;o.type='square';g.gain.setValueAtTime(v*.25,t+i*.2);g.gain.setValueAtTime(0,t+i*.2+.1);o.start(t+i*.2);o.stop(t+i*.2+.12); } }
+function playChime(v=.7){ const c=audioCtx,t=c.currentTime; [523,659,784,1047].forEach((f,i)=>{ const o=c.createOscillator(),g=c.createGain();o.connect(g);g.connect(c.destination);o.frequency.value=f;o.type='sine';g.gain.setValueAtTime(v*.28,t+i*.13);g.gain.exponentialRampToValueAtTime(.0001,t+i*.13+1.6);o.start(t+i*.13);o.stop(t+i*.13+1.6); }); }
+function playSoft(v=.7){ const c=audioCtx,t=c.currentTime,o=c.createOscillator(),g=c.createGain();o.connect(g);g.connect(c.destination);o.frequency.value=440;o.type='sine';g.gain.setValueAtTime(0,t);g.gain.linearRampToValueAtTime(v*.4,t+.25);g.gain.exponentialRampToValueAtTime(.0001,t+2.2);o.start(t);o.stop(t+2.2); }
+
+/* ═══ BACKGROUND MUSIC ═══ */
+function ensureBgAudio(){
+  if(bgAudio) return bgAudio;
+  bgAudio = document.createElement('audio');
+  bgAudio.setAttribute('playsinline', '');
+  bgAudio.setAttribute('webkit-playsinline', '');
+  bgAudio.setAttribute('x-webkit-airplay', 'deny');
+  bgAudio.preload = 'auto';
+  bgAudio.volume  = settings.bgMusicVolume ?? 0.5;
+  document.body.appendChild(bgAudio);
+
+  bgAudio.addEventListener('ended', function(){
+    if(state.status === 'running' && settings.customSoundMode === 'background' && customItems.length > 1){
+      bgPlay((bgIdx + 1) % customItems.length);
+    }   // single track: native loop handles it
+  });
+  bgAudio.addEventListener('error', function(){
+    if(!bgAudio._track) return;            // we cleared the src ourselves
+    if(bgAudio._failedTok === _bgAttempt) return;   // this attempt was already counted
+    bgAudio._failedTok = _bgAttempt;
+    const c = bgAudio.error && bgAudio.error.code;
+    _bgLastErr = 'media error ' + c + (c === 4 ? ' (unsupported format)' : '') + bgDiag();
+    console.warn('Background track failed:', customItems[bgIdx] && customItems[bgIdx].name, _bgLastErr);
+    bgNextAfterError();
+  });
+  /* iOS pauses a media element when something else grabs the audio session (another element, a call, Siri).
+     If the timer still wants music, quietly start it again — a few tries, then give up and say so. */
+  bgAudio.addEventListener('pause', function(){
+    if(!_bgIntent || bgAudio.ended || !bgAudio._track) return;
+    if(state.status !== 'running' || state.phase !== 'pomodoro') return;
+    if(_bgRecover++ >= 3){ showToast('Music was interrupted — tap ▶ to restart it', 4000); return; }
+    setTimeout(function(){
+      if(_bgIntent && bgAudio.paused && !bgAudio.ended && state.status === 'running'){
+        const p = bgAudio.play(); if(p && p.catch) p.catch(function(){});
+      }
+    }, 350);
+  });
+  bgAudio.addEventListener('playing', function(){ lockScreenForMusic(); });
+  return bgAudio;
+}
+
+/* Numbers that explain a failed load: loader state, file size/type. */
+function bgDiag(){
+  const it = customItems[bgIdx];
+  return ' [net ' + (bgAudio ? bgAudio.networkState : '?') + ', ready ' + (bgAudio ? bgAudio.readyState : '?')
+       + (it ? ', ' + Math.round(it.size / 1048576) + ' MB ' + (it.type || '?') : '') + ']';
+}
+function bgNextAfterError(){
+  if(++bgFails >= customItems.length){
+    bgMusicStop();
+    _bgFailed = true;                       // stop trying until the next ▶ — and let the lock-screen clip take over
+    showToast('Could not play your audio file(s) on this device' + (_bgLastErr ? ' — ' + _bgLastErr : ''), 8000);
+    if(state.status === 'running' && settings.lockScreen) activateSilentAudio();
+    return;
+  }
+  bgPlay((bgIdx + 1) % customItems.length);
+}
+
+function bgWanted(){
+  return settings.customSoundMode === 'background' && settings.soundEnabled && customItems.length > 0 && !_bgFailed && settings.widgetMode !== 'timer';
+}
+
+function bgPlay(idx){
+  const it = customItems[idx % customItems.length];
+  if(!it) return;
+  ensureBgAudio();
+  bgIdx = idx % customItems.length;
+  _bgIntent = true;
+  const tok = ++_bgAttempt;
+  bgAudio.loop   = customItems.length === 1;
+  bgAudio._track = it.url;
+  bgAudio.src    = it.url;
+  bgAudio.volume = settings.bgMusicVolume ?? 0.5;
+  const p = bgAudio.play();
+  if(p && p.then) p.then(function(){ bgFails = 0; bgBlocked = false; }).catch(function(err){
+    if(tok !== _bgAttempt) return;                               // a newer attempt replaced this one
+    if(err && err.name === 'AbortError') return;                 // superseded by another load/pause
+    if(err && err.name === 'NotAllowedError'){
+      bgBlocked = true;                                           // retried on the next tap (unlockAudio)
+      showToast('Tap anywhere to start your music');
+      return;
+    }
+    if(bgAudio._failedTok === tok) return;                       // the 'error' event already counted this one
+    bgAudio._failedTok = tok;
+    _bgLastErr = errReason(err) + bgDiag();
+    console.warn('Background music error:', err && err.name, err && err.message);
+    bgNextAfterError();
+  });
+}
+
+function bgMusicStart(){
+  if(!bgWanted()) return;
+  _bgRecover = 0;
+  ensureBgAudio();
+  if(!customReady){ bgPendingStart = true; return; }
+  if(bgAudio._track){ bgMusicResume(); return; }                 // paused mid-track → continue it
+  bgPlay(bgIdx);
+}
+function bgMusicPause(){
+  _bgIntent = false;
+  if(bgAudio && !bgAudio.paused) bgAudio.pause();
+}
+function bgMusicResume(){
+  if(!bgWanted()) return;
+  ensureBgAudio();
+  if(!bgAudio._track){ bgMusicStart(); return; }
+  _bgIntent = true;
+  if(bgAudio.paused){
+    const p = bgAudio.play();
+    if(p && p.catch) p.catch(function(err){
+      if(err && err.name === 'NotAllowedError') bgBlocked = true;
+    });
+  }
+}
+function bgMusicStop(){
+  _bgIntent = false;
+  bgBlocked = false;
+  if(!bgAudio) return;
+  bgAudio.pause();
+  bgAudio._track = null;
+  bgAudio.removeAttribute('src');        // NOT src='' — that fires a bogus error event
+  try{ bgAudio.load(); }catch(e){}
+  bgIdx = 0; bgFails = 0;
+}
+
+
+function playTick(){ if(!audioCtx) return; const c=audioCtx,t=c.currentTime,o=c.createOscillator(),g=c.createGain();o.connect(g);g.connect(c.destination);o.frequency.value=900;o.type='sine';g.gain.setValueAtTime(.015,t);g.gain.exponentialRampToValueAtTime(.0001,t+.04);o.start(t);o.stop(t+.05); }
+
+/* ─── MEDIA SESSION / LOCK SCREEN ─── */
+/* ══════════════════════════════════════════════════════════════════
+   SILENT AUDIO + MEDIA SESSION — iOS Lock Screen
+   iOS kills AudioContext the moment the screen locks. The fix:
+   1. Use a real <audio> element (survives lock screen, not just Web Audio)
+   2. AudioContext statechange → auto-resume on unlock
+   3. Periodic heartbeat re-registers Media Session every 20s
+   4. Gain of 0.001 (iOS ignores gain ≤ 0.00001 as "not playing")
+   5. setPositionState guarded individually (throws on old iOS)
+══════════════════════════════════════════════════════════════════ */
+
+/* ── Silent audio — iOS Lock Screen Strategy ──────────────────────
+   iOS PWA rules (tested on iOS 16.4 – 17.x):
+   A. The <audio> element MUST be created + .play() called from a
+      DIRECT user gesture (touchstart / click). Async chains break this.
+   B. The audio must be ≥ 1 second; iOS discards sub-second loops as
+      "not real media" and won't show the Now Playing widget.
+   C. playsinline + webkit-playsinline are required on iOS.
+   D. volume must be ≥ 0.01 for iOS audio session to register.
+   E. MediaSession metadata must be set AFTER play() promise resolves.
+   F. A heartbeat re-sets metadata every 15s (iOS can evict the widget).
+   ─────────────────────────────────────────────────────────────────── */
+
+/* ── Silent WAV — small fixed-length, loop=true ──────────────────
+   60-second WAV at 4kHz mono 8-bit = 240KB. Small enough to build
+   instantly (no main-thread blocking), loop keeps audio session alive.
+
+   WHY NOT phase-length WAV:
+   A 25-minute WAV = 6MB+ ArrayBuffer filled synchronously → blocks
+   the JS event loop → iOS user-gesture timeout expires → play() throws
+   NotAllowedError → MediaMetadata never registers → blank widget.
+
+   WHY LOOP DOESN'T RESET THE SCRUB BAR:
+   iOS uses setPositionState() — NOT audio.currentTime — as the
+   authoritative source for the Now Playing scrub bar position,
+   as long as setPositionState is called with valid values.
+   The loop resets audio.currentTime every 60s but this is invisible
+   to the scrub bar when setPositionState is active.
+
+   THE PREVIOUS 3-SECOND RESET was caused by setPositionState being
+   called from the heartbeat (every 15s) and from onVis (screen unlock)
+   where remainingMs was stale → position briefly computed as ≈0
+   → bar snapped to start. Fix: setPositionState ONLY from tick().  */
+
+const SILENT_SRC = (function buildWAV(){
+  var SR   = 4000;   // 4kHz — minimum iOS accepts
+  var DUR  = 60;     // 60 seconds — small but long enough to feel real
+  var NSMP = SR * DUR;  // 240,000 samples = 240,000 bytes (8-bit)
+  var buf  = new ArrayBuffer(44 + NSMP);
+  var v    = new DataView(buf);
+  var u8   = new Uint8Array(buf);
+
+  function str(o,s){ for(var i=0;i<s.length;i++) v.setUint8(o+i,s.charCodeAt(i)); }
+  function u32(o,n){ v.setUint32(o,n,true); }
+  function u16(o,n){ v.setUint16(o,n,true); }
+
+  str(0,'RIFF'); u32(4,36+NSMP);
+  str(8,'WAVE'); str(12,'fmt ');
+  u32(16,16); u16(20,1); u16(22,1);
+  u32(24,SR); u32(28,SR);
+  u16(32,1); u16(34,8);
+  str(36,'data'); u32(40,NSMP);
+  u8.fill(128,44);  // 0x80 = unsigned 8-bit PCM silence
+
+  return URL.createObjectURL(new Blob([buf],{type:'audio/wav'}));
+})();
+
+/* ── Pre-warm: create <audio> on first user touch ─────────────────
+   Must happen inside a user gesture so iOS allows .play() later.   */
+var _audioPrewarmed = false;
+function prewarmAudio(){
+  if(_audioPrewarmed) return;
+  _audioPrewarmed = true;
+  if(!silentAudioEl){
+    silentAudioEl = document.createElement('audio');
+    silentAudioEl.setAttribute('playsinline',        '');
+    silentAudioEl.setAttribute('webkit-playsinline', '');
+    silentAudioEl.setAttribute('x-webkit-airplay',   'deny');
+    silentAudioEl.loop   = true;     // loop the 60s WAV — keeps session alive
+    silentAudioEl.volume = 0.01;     // inaudible but iOS registers it as active
+    silentAudioEl.src    = SILENT_SRC;
+    silentAudioEl.load();
+    document.body.appendChild(silentAudioEl);
+    /* iOS pauses it when another element (an unlock clip, an alert, a call) takes the audio slot — restart it afterwards. */
+    silentAudioEl.addEventListener('pause', function(){
+      if(state.status !== 'running' || musicOwnsSession()) return;
+      setTimeout(function(){
+        if(state.status === 'running' && silentAudioEl.paused && !musicOwnsSession()
+           && !(notifEl && !notifEl.paused) && !(bgAudio && !bgAudio.paused)) silentAudioEl.play().catch(function(){});
+      }, 500);
+    });
+  }
+}
+
+/* Audio unlock listeners live with the custom-audio engine (unlockAudio). */
+
+/* ── Activate: called when timer starts ────────────────────────── */
+/* While focus music is playing, the music itself keeps the audio session (and lock-screen widget) alive.
+   A second looping element would make iOS pause the music, so the silent clip is not used then. */
+function musicOwnsSession(){ return bgWanted() && state.phase === 'pomodoro'; }
+let _metaPending = false;
+function applyLockScreenNow(){
+  if(!settings.lockScreen || state.status !== 'running') return;
+  setMediaMetadata(); updatePlaybackState(); _startHeartbeat();
+  updatePositionState(true);             // after the metadata: assigning metadata resets the position on iOS
+}
+function lockScreenForMusic(){
+  if(!_metaPending) return;
+  _metaPending = false;
+  applyLockScreenNow();
+  /* iOS sometimes ignores the first update made while the music element is still starting — repeat once. */
+  setTimeout(function(){ if(state.status === 'running' && musicOwnsSession() && bgAudio && !bgAudio.paused) applyLockScreenNow(); }, 1500);
+}
+
+function activateSilentAudio(){
+  if(!settings.lockScreen) return;
+
+  prewarmAudio();  // ensure element exists (safety net)
+
+  if(musicOwnsSession()){
+    if(silentAudioEl && !silentAudioEl.paused) silentAudioEl.pause();
+    if(silentNode){ try{ silentNode.stop(); }catch(e){} silentNode = null; }
+    _metaPending = true;                 // metadata is set once the music is confirmed playing
+    if(bgAudio && !bgAudio.paused) lockScreenForMusic();
+    return;
+  }
+
+  /* play() — element already loaded during prewarm, so this is fast */
+  var playPromise = silentAudioEl.play();
+  if(playPromise && typeof playPromise.then === 'function'){
+    playPromise.then(function(){
+      /* Audio confirmed playing — now safe to set MediaMetadata.
+         Doing this AFTER play() resolves is required by iOS so the
+         Now Playing widget appears. Setting it before play() resolves
+         results in a blank widget with no icon or title.             */
+      setMediaMetadata();
+      updatePlaybackState();
+      _startHeartbeat();
+    }).catch(function(err){
+      console.warn('Silent audio blocked:', err);
+      setMediaMetadata();
+      updatePlaybackState();
+    });
+  } else {
+    setMediaMetadata();
+    updatePlaybackState();
+    _startHeartbeat();
+  }
+
+  /* Web Audio node for desktop/Android (AudioContext approach) */
+  if(audioCtx){
+    try{
+      if(silentNode){ try{ silentNode.stop(); }catch(e){} silentNode=null; }
+      var abuf = audioCtx.createBuffer(1, audioCtx.sampleRate * 3, audioCtx.sampleRate);
+      silentNode = audioCtx.createBufferSource();
+      silentNode.buffer = abuf;
+      silentNode.loop   = true;
+      var gn = audioCtx.createGain();
+      gn.gain.value = 0.01;
+      silentNode.connect(gn);
+      gn.connect(audioCtx.destination);
+      silentNode.start();
+    }catch(e){}
+
+    /* Auto-resume AudioContext if iOS suspends it on lock */
+    if(!audioCtx._stateWired){
+      audioCtx._stateWired = true;
+      audioCtx.addEventListener('statechange', function(){
+        if(audioCtx.state === 'suspended' && state.status === 'running'){
+          audioCtx.resume().catch(function(){});
+        }
+      });
+    }
+  }
+}
+
+/* ── Heartbeat: re-registers Now Playing every 15s ──────────────
+   iOS can evict the Now Playing widget between lock/unlock cycles.
+   Re-registering metadata keeps it visible on the lock screen.    */
+function _startHeartbeat(){
+  if(mediaHeartbeat) clearInterval(mediaHeartbeat);
+  mediaHeartbeat = setInterval(function(){
+    if(state.status !== 'running'){
+      clearInterval(mediaHeartbeat);
+      mediaHeartbeat = null;
+      return;
+    }
+    /* Keep audio alive — do NOT call setMediaMetadata() here.
+       Recreating MediaMetadata during playback resets setPositionState. */
+    updatePositionState();
+    if(silentAudioEl && silentAudioEl.paused && !musicOwnsSession()){
+      silentAudioEl.play().catch(function(){});
+    }
+    if(audioCtx && audioCtx.state === 'suspended'){
+      audioCtx.resume().catch(function(){});
+    }
+  }, 15000);
+}
+
+function deactivateSilentAudio(){
+  if(silentAudioEl && !silentAudioEl.paused){
+    // Keep it playing even when paused — iOS needs it for lock screen controls
+    // But update playback state
+  }
+  if(mediaHeartbeat && state.status !== 'running'){
+    clearInterval(mediaHeartbeat);
+    mediaHeartbeat = null;
+  }
+}
+
+/* ── Media Session ─────────────────────────────────────────────── */
+/* ══════════════════════════════════════════════════════════════════
+   MEDIA SESSION — Three strictly separated functions.
+
+   RULE: navigator.mediaSession.metadata = new MediaMetadata(...)
+         RESETS setPositionState to position=0 on iOS every single time.
+         Therefore MediaMetadata must NEVER be recreated during playback.
+
+   setMediaMetadata()    → called ONCE per phase (start + phase change)
+   updatePlaybackState() → called on pause/resume only
+   updatePositionState() → called every second from tick() only
+   ══════════════════════════════════════════════════════════════════ */
+
+/* Cache: only recreate MediaMetadata when phase actually changes */
+var _lastMetaPhase = '';
+
+function setMediaMetadata(){
+  if(!('mediaSession' in navigator) || !settings.lockScreen) return;
+
+  var ms  = state.remainingMs;
+  var mm  = String(Math.floor(ms/60000)).padStart(2,'0');
+  var ss  = String(Math.floor((ms%60000)/1000)).padStart(2,'0');
+  var ts  = mm + ':' + ss;
+
+  var PHASE = {
+    pomodoro:   { title:'Focus',      emoji:'🍅' },
+    shortBreak: { title:'Short Break', emoji:'☕' },
+    longBreak:  { title:'Long Break',  emoji:'🛌' },
+  };
+  var p = PHASE[state.phase] || PHASE.pomodoro;
+
+  /* Set action handlers first */
+  var handlers = [
+    ['play',          startTimer],
+    ['pause',         pauseTimer],
+    ['stop',          resetTimer],
+    ['nexttrack',     skipPhase ],
+    ['previoustrack', null      ],
+  ];
+  handlers.forEach(function(pair){
+    try{ navigator.mediaSession.setActionHandler(pair[0], pair[1]); }catch(e){}
+  });
+
+  /* ── Field layout ──────────────────────────────────────────────
+     title  → phase name e.g. "Focus"  (STATIC — updated by mutateMetadata)
+     artist → countdown  e.g. "25 min remaining"  (updated by mutateMetadata)
+     album  → cycle info e.g. "Pomodoro 1/5"      (static per phase)
+
+     Note: assigning new MediaMetadata() resets setPositionState on iOS.
+     That is fine here because this is called BEFORE tick() starts.    */
+  try{
+    navigator.mediaSession.metadata = new MediaMetadata({
+      title:   p.emoji + ' ' + p.title,
+      artist:  String(Math.ceil(ms / 60000)) + ' min remaining',
+      album:   'Pomodoro ' + (state.cycleCount + 1) + ' / ' + settings.pomodorosPerCycle,
+      artwork: [{ src: makeArt(ts), sizes:'512x512', type:'image/svg+xml' }]
+    });
+    _lastMetaPhase = state.phase;
+    _lastMutateMin = -1;   // reset so mutateMetadata fires on next tick
+    _ls.meta++;
+  }catch(e){ _ls.err = (e && e.name) || 'error'; }
+}
+
+/* Update playback state only — does NOT touch MediaMetadata */
+function updatePlaybackState(){
+  if(!('mediaSession' in navigator) || !settings.lockScreen) return;
+  try{
+    navigator.mediaSession.playbackState = state.status==='running' ? 'playing' : 'paused';
+  }catch(e){}
+}
+
+/* ── Mutate existing MediaMetadata in-place (SAFE during playback) ──
+   Updating .title / .artist / .artwork on the EXISTING object does NOT
+   reset setPositionState on iOS — only assigning new MediaMetadata() does.
+   Called every minute from tick() to keep icon + title current.          */
+var _lastMutateMin = -1;
+
+function mutateMetadata(){
+  if(!('mediaSession' in navigator) || !settings.lockScreen) return;
+  var meta = navigator.mediaSession.metadata;
+  if(!meta) return;   // setMediaMetadata() hasn't run yet
+
+  var ms     = state.remainingMs;
+  var mm     = String(Math.floor(ms / 60000)).padStart(2, '0');
+  var ss     = String(Math.floor((ms % 60000) / 1000)).padStart(2, '0');
+  var ts     = mm + ':' + ss;
+  var minNum = parseInt(mm, 10);
+
+  /* Gate: only update once per minute */
+  if(minNum === _lastMutateMin) return;
+  _lastMutateMin = minNum;
+
+  /* ── Update ARTIST with "XX min remaining" ──────────────────────
+     artist is the subtitle line shown below the title in Now Playing.
+     title stays as the phase name ("🍅 Focus") — never overwrite it. */
+  try{
+    meta.artist = String(Math.ceil(ms / 60000)) + ' min remaining';
+  }catch(e){}
+
+  /* ── Update artwork by replacing the array ───────────────────────
+     meta.artwork[0].src is READ-ONLY on iOS (the MediaImage entries
+     are frozen). Assigning a NEW array object to meta.artwork DOES
+     work and does NOT reset setPositionState (only new MediaMetadata
+     assignment does that). This updates the lock screen icon.        */
+  try{
+    meta.artwork = [{ src: makeArt(ts), sizes:'512x512', type:'image/svg+xml' }];
+  }catch(e){}
+}
+
+/* Legacy alias — called in many places; only update playback state,
+   never recreate MediaMetadata (that is setMediaMetadata's job).    */
+function updateMediaSession(){
+  updatePlaybackState();
+}
+
+/* ── Artwork — cached, only regenerates when MINUTE changes ──────
+   Regenerating every second causes the iOS Now Playing icon to blink.
+   We cache the last rendered URL and only rebuild on minute rollover
+   or phase change. The icon uses a clean iOS-style design with no
+   animated progress ring (static ring looks great, doesn't flicker). */
+var _artCache = { key:'', url:'' };
+
+function makeArt(ts){
+  const phase = state.phase;
+  const mm    = ts.slice(0,2);         // minutes portion  e.g. "23"
+  const cacheKey = phase + ':' + mm;   // cache key        e.g. "pomodoro:23"
+
+  if(_artCache.key === cacheKey) return _artCache.url;
+
+  const COLORS = {
+    pomodoro:   { bg:'#1a0505', ring:'#ff6b6b', label:'FOCUS'  },
+    shortBreak: { bg:'#03100f', ring:'#4ecdc4', label:'BREAK'  },
+    longBreak:  { bg:'#0d0818', ring:'#a78bfa', label:'REST'   },
+  };
+  const col = COLORS[phase] || COLORS.pomodoro;
+
+  /* ── FIX 1: show round minute "MM:00" not "MM:SS"
+     At 23:59 we display "24:00" (the next round minute coming up).
+     At 23:01 we display "23:00".
+     Rule: if seconds > 0 we are still in that minute, show (MM+1):00
+           if seconds == 0 exactly, show MM:00                        */
+  const secPart  = parseInt(ts.slice(3,5), 10);
+  const minNum   = parseInt(mm, 10);
+  const dispMin  = secPart > 0 ? minNum + 1 : minNum;
+  const dispText = String(dispMin).padStart(2,'0') + ':00';
+
+  /* Progress fraction — computed once at minute boundary */
+  const frac = state.phaseDurationMs > 0
+    ? Math.max(0, Math.min(1, (state.phaseDurationMs - state.remainingMs) / state.phaseDurationMs))
+    : 0;
+  const dash   = 1319;
+  const offset = (dash * (1 - frac)).toFixed(1);
+
+  /* ── FIX 2: no rx on background rect — iOS clips album art itself.
+     Transparent SVG corners show as white in the Now Playing widget.
+     Fill the ENTIRE 512×512 square; iOS overlays its own corner mask. */
+  const svg =
+    /* SVG root: explicit background colour so no white leaks at corners */
+    '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"'
+    +   ' style="background:' + col.bg + '">'
+    + '<defs>'
+    +   '<radialGradient id="bg" cx="50%" cy="45%" r="70%">'
+    +     '<stop offset="0%" stop-color="' + col.bg + '"/>'
+    +     '<stop offset="100%" stop-color="#07091a"/>'
+    +   '</radialGradient>'
+    + '</defs>'
+    /* ── Full bleed background — NO rx, fills every pixel ── */
+    + '<rect width="512" height="512" fill="url(#bg)"/>'
+    /* ── Track ring ── */
+    + '<circle cx="256" cy="256" r="200" fill="none"'
+    +   ' stroke="rgba(255,255,255,0.08)" stroke-width="20"/>'
+    /* ── Progress ring ── */
+    + '<circle cx="256" cy="256" r="200" fill="none"'
+    +   ' stroke="' + col.ring + '" stroke-width="20"'
+    +   ' stroke-dasharray="' + dash + '"'
+    +   ' stroke-dashoffset="' + offset + '"'
+    +   ' stroke-linecap="round"'
+    +   ' transform="rotate(-90 256 256)"/>'
+    /* ── Round-minute time text e.g. "24:00" ── */
+    + '<text x="256" y="278" font-family="-apple-system,BlinkMacSystemFont,monospace"'
+    +   ' font-weight="700" font-size="128" fill="#ffffff"'
+    +   ' text-anchor="middle" letter-spacing="-3">' + dispText + '</text>'
+    /* ── Phase label ── */
+    + '<text x="256" y="332" font-family="-apple-system,BlinkMacSystemFont,sans-serif"'
+    +   ' font-size="40" font-weight="600" fill="' + col.ring + '"'
+    +   ' text-anchor="middle" letter-spacing="10">' + col.label + '</text>'
+    + '</svg>';
+
+  const url = 'data:image/svg+xml,' + encodeURIComponent(svg);
+  _artCache = { key: cacheKey, url: url };
+  return url;
+}
+
+/* Force art cache bust on phase change (called from advancePhase) */
+function bustArtCache(){
+  _artCache       = { key:'', url:'' };
+  _lastMutateMin  = -1;   // force mutateMetadata() to re-run on next tick
+}
+
+/* ── Dedicated position state updater ────────────────────────────
+   Called ONLY from the tick loop where remainingMs is always fresh.
+   Guards:
+     - Skip first 3s of any phase (position≈0 causes bar to flash left)
+     - position must be > 0 and < duration
+     - Hard cap at duration-0.5 so iOS never sees pos >= dur          */
+var _phaseStartMs = 0;   // set in startTimer + advancePhase
+
+function updatePositionState(force){
+  /* Called ONLY from tick() — remainingMs is always freshly computed.
+     setPositionState drives the iOS Now Playing scrub bar position.
+     Guards prevent the 0:00 reset bug:
+       - Skip first 3s: position near 0 causes bar to flash to start
+       - Skip last 0.5s: avoids end-of-phase edge flicker
+       - elapsed must be strictly < duration                          */
+  if(!('mediaSession' in navigator)) return;
+  if(state.status !== 'running')     return;
+  if(state.phaseDurationMs <= 0)     return;
+
+  var dur     = state.phaseDurationMs / 1000;
+  var elapsed = (state.phaseDurationMs - state.remainingMs) / 1000;
+
+  if(elapsed < 3 && !force && !musicOwnsSession()) return;   // the 3 s guard only matters for the looping silent clip
+  if(elapsed >= dur - 0.5)   return;
+  if(elapsed < 0) elapsed = 0;
+
+  try{
+    navigator.mediaSession.setPositionState({
+      duration:     dur,
+      playbackRate: 1,
+      position:     elapsed
+    });
+    _ls.pos++; _ls.last = Math.round(dur) + 's';
+  }catch(e){ _ls.err = (e && e.name) || 'error'; }
+}
+
+/* ─── NOTIFICATIONS — see getNotifCapability / sendPush above ─── */
+
+/* ─── WAKE LOCK ─── */
+async function reqWakeLock(){ if(!('wakeLock' in navigator)) return; try{ if(wakeLock) wakeLock.release(); wakeLock=await navigator.wakeLock.request('screen'); }catch(e){} }
+
+/* ─── VISIBILITY ─── */
+function onVis(){
+  if(document.visibilityState!=='visible'){
+    // Screen about to lock — nothing to do, audio keeps playing
+    return;
+  }
+  // Screen unlocked / tab visible again
+  if(state.status==='running' && state.startTimestamp){
+    state.remainingMs=Math.max(0, state.phaseDurationMs-(Date.now()-state.startTimestamp));
+    if(state.remainingMs===0){ completePhase(false); return; }
+    updateTimerDisplay();
+  }
+  // Resume AudioContext (iOS suspends it on lock)
+  if(audioCtx && audioCtx.state==='suspended') audioCtx.resume().catch(()=>{});
+  // Restart audio on screen unlock — do NOT reassign MediaMetadata
+  if(state.status === 'running' && silentAudioEl){
+    if(silentAudioEl.paused){
+      silentAudioEl.play().then(function(){
+        /* Audio restarted — update position (metadata already set at phase start) */
+        updatePositionState();
+        updatePlaybackState();
+      }).catch(function(){
+        updatePositionState();
+      });
+    } else {
+      /* Audio still playing — just sync position */
+      updatePositionState();
+    }
+  }
+  if(state.status==='running') reqWakeLock();
+  if(state.status==='running' && state.phase==='pomodoro') bgMusicResume();  // iOS/Android may pause media while locked
+  if(state.status==='running' && musicOwnsSession()) updatePositionState(true);
+  renderAll();
+}
+
+/* ─── DONE OVERLAY ─── */
+function showDoneOverlay(){
+  const MSGS=['Great focus! You\'ve earned a break.','Deep work done. Time to recharge.','Excellent! Rest for a moment.','Another one down — on fire!'];
+  if(state.phase==='pomodoro'){ const isLong=state.cycleCount>=settings.pomodorosPerCycle; document.getElementById('doneIcon').textContent='🍅';document.getElementById('doneTitle').textContent='POMODORO DONE!';document.getElementById('doneMsg').textContent=MSGS[Math.floor(Math.random()*MSGS.length)];document.getElementById('nextLbl').textContent=isLong?'Take Long Break':'Take Short Break'; }
+  else if(state.phase==='shortBreak'){ document.getElementById('doneIcon').textContent='☕';document.getElementById('doneTitle').textContent='BREAK OVER!';document.getElementById('doneMsg').textContent='Refreshed? Back to focus!';document.getElementById('nextLbl').textContent='Start Focus'; }
+  else{ document.getElementById('doneIcon').textContent='🛌';document.getElementById('doneTitle').textContent='LONG BREAK OVER!';document.getElementById('doneMsg').textContent='Full cycle done! Ready for another?';document.getElementById('nextLbl').textContent='New Cycle'; }
+  document.getElementById('doneOverlay').classList.add('show');
+}
+function dismissDone(andStart){ document.getElementById('doneOverlay').classList.remove('show'); advancePhase(); updateTimerDisplay(); updateControlUI(); updateAccent(); if(andStart) setTimeout(startTimer,300); }
+
+/* ─── CONFETTI ─── */
+function spawnConfetti(){
+  const el=document.getElementById('confetti');
+  const L=document.documentElement.getAttribute('data-theme')==='light';
+  const cols=L?['#d4a373','#ccd5ae','#b07030','#5d8a5e','#7a6a9e','#faedcd']:['#ff6b6b','#4ecdc4','#a78bfa','#ffd166','#06d6a0','#ef476f'];
+  for(let i=0;i<50;i++){ const p=document.createElement('div');p.className='confettiPiece';p.style.cssText=`left:${Math.random()*100}vw;top:-10px;width:${Math.random()*8+4}px;height:${Math.random()*8+4}px;background:${cols[Math.floor(Math.random()*cols.length)]};animation-duration:${Math.random()*2+1.5}s;animation-delay:${Math.random()*.5}s;border-radius:${Math.random()>.5?'50%':'2px'}`; el.appendChild(p); setTimeout(()=>p.remove(),4000); }
+}
+
+/* ─── NAVIGATION ─── */
+function switchTab(n){ document.querySelectorAll('.tab').forEach(t=>{ const on=t.dataset.tab===n; t.classList.toggle('active',on); if(on) t.setAttribute('aria-current','page'); else t.removeAttribute('aria-current'); }); document.querySelectorAll('.view').forEach(v=>v.classList.remove('active')); document.getElementById(n+'View').classList.add('active'); if(n==='stats'){renderStats();renderCalendar();} if(n==='settings'){ renderSettingsUI(); renderBuildStamp(); } }
+
+/* ─── TOAST ─── */
+let toastTm;
+function showToast(msg, ms){ const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');clearTimeout(toastTm);toastTm=setTimeout(()=>t.classList.remove('show'),ms||2800); }
+
+
+/* ─── QUOTES ─── */
+const QUOTES=['"The secret of getting ahead is getting started." — Mark Twain','"Focus is deciding what things you\'re not going to do." — John Carmack','"Deep work is the superpower of the 21st century." — Cal Newport','"Concentrate all your thoughts upon the work in hand." — A.G. Bell','"One task at a time. Every time." — Unknown','"Do the hard jobs first." — Dale Carnegie','"You don\'t need more time. You need more focus." — Unknown','"Quality output = length of sustained focus." — Unknown'];
+function cycleQuotes(){ const el=document.getElementById('quoteText'); if(!el) return; el.style.opacity='0';setTimeout(()=>{el.textContent=QUOTES[Math.floor(Math.random()*QUOTES.length)];el.style.opacity='1';},500);setTimeout(cycleQuotes,12*60*1000); }
+
+/* ─── PWA MANIFEST ─── */
+function injectManifest(){ const m={name:'Focus — Pomodoro Timer',short_name:'Focus',description:'Premium Pomodoro timer',start_url:'./',display:'standalone',background_color:'#07091a',theme_color:'#07091a',orientation:'portrait-primary',categories:['productivity'],icons:[{src:`data:image/svg+xml,${encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 192 192"><rect width="192" height="192" rx="40" fill="#07091a"/><text y="140" x="96" font-size="130" text-anchor="middle">🍅</text></svg>')}`,sizes:'192x192',type:'image/svg+xml',purpose:'any maskable'}]};const blob=new Blob([JSON.stringify(m)],{type:'application/json'});const link=document.createElement('link');link.rel='manifest';link.href=URL.createObjectURL(blob);document.head.appendChild(link); }
+
+
+/* ════════════════════════════════════════════════════════════════════
+   SUPABASE CLOUD SYNC
+   Architecture:
+   - Device ID (UUID) stored in localStorage — no login required
+   - Merge strategy: MAX(local, remote) per day — never lose data
+   - Real-time subscription: updates propagate instantly across devices
+   - Offline queue: records while offline, flushes on reconnect
+   - Graceful degradation: if not configured, everything works locally
+════════════════════════════════════════════════════════════════════ */
+
+const SYNC_SQL = `-- ══════════════════════════════════════════════════════
+-- Focus Timer — Supabase RLS setup (run in SQL Editor)
+-- Safe to re-run: uses DROP IF EXISTS before every CREATE.
+-- Handles existing tables where user_id was text.
+-- ══════════════════════════════════════════════════════
+
+-- 0. Enable Anonymous Sign-In first:
+--    Dashboard → Authentication → Providers → Anonymous → Enable
+
+-- 1. Create pomodoro_history if it does not exist yet
+create table if not exists public.pomodoro_history (
+  id         uuid    default gen_random_uuid() primary key,
+  user_id    text    not null,
+  date       date    not null,
+  count      integer not null default 0,
+  updated_at timestamptz default now(),
+  unique(user_id, date)
+);
+
+-- 2. Add count safety constraint (skip if already exists)
+do $$ begin
+  alter table public.pomodoro_history
+    add constraint count_range check (count >= 0 and count <= 1440);
+exception when duplicate_object then null;
+end $$;
+
+-- 3. Enable Row Level Security
+alter table public.pomodoro_history enable row level security;
+
+-- 4. Drop ALL existing policies (old open ones and previous tight ones)
+drop policy if exists "anon_all"    on public.pomodoro_history;
+drop policy if exists "select_own"  on public.pomodoro_history;
+drop policy if exists "insert_own"  on public.pomodoro_history;
+drop policy if exists "update_own"  on public.pomodoro_history;
+drop policy if exists "delete_own"  on public.pomodoro_history;
+
+-- 5. Create tight policies — cast auth.uid() to text so it matches
+--    the user_id text column with no type error.
+create policy "select_own" on public.pomodoro_history
+  for select to authenticated, anon
+  using ( auth.uid()::text = user_id );
+
+create policy "insert_own" on public.pomodoro_history
+  for insert to authenticated, anon
+  with check ( auth.uid()::text = user_id );
+
+create policy "update_own" on public.pomodoro_history
+  for update to authenticated, anon
+  using     ( auth.uid()::text = user_id )
+  with check ( auth.uid()::text = user_id );
+
+create policy "delete_own" on public.pomodoro_history
+  for delete to authenticated, anon
+  using ( auth.uid()::text = user_id );
+
+-- 6. Transfer codes table (for secure device linking)
+create table if not exists public.transfer_codes (
+  code       text    primary key,
+  user_id    text    not null,
+  created_at timestamptz default now(),
+  expires_at timestamptz default (now() + interval '10 minutes'),
+  used       boolean default false
+);
+alter table public.transfer_codes enable row level security;
+
+drop policy if exists "insert_own_code" on public.transfer_codes;
+drop policy if exists "read_any_code"   on public.transfer_codes;
+drop policy if exists "update_own_code" on public.transfer_codes;
+
+create policy "insert_own_code" on public.transfer_codes
+  for insert to authenticated, anon
+  with check ( auth.uid()::text = user_id );
+
+create policy "read_any_code" on public.transfer_codes
+  for select to authenticated, anon
+  using ( true );
+
+create policy "update_own_code" on public.transfer_codes
+  for update to authenticated, anon
+  using ( true ) with check ( true );
+
+-- 7. Enable real-time for pomodoro_history
+do $$ begin
+  alter publication supabase_realtime add table public.pomodoro_history;
+exception when others then null;
+end $$;`;
+
+const SYNC_DEFAULTS = { url:'', key:'', userId:'', enabled:false };
+let syncCfg   = { ...SYNC_DEFAULTS };
+let sbClient  = null;
+let sbChannel = null;
+let syncQueue = [];   // { date, count } offline queue
+
+/* ── Persist sync config ──────────────────────────────────────── */
+function loadSyncCfg(){
+  try{
+    const s=localStorage.getItem('pomo_sync');
+    if(s) syncCfg={...SYNC_DEFAULTS,...JSON.parse(s)};
+  }catch(e){}
+}
+function saveSyncCfg(){
+  try{ localStorage.setItem('pomo_sync',JSON.stringify(syncCfg)); }catch(e){}
+}
+
+/* ── Sync status pill ─────────────────────────────────────────── */
+function updateSyncPill(state){
+  const pill=document.getElementById('syncPill');
+  const icon=document.getElementById('syncIcon');
+  const lbl =document.getElementById('syncLabel');
+  if(!pill) return;
+  const MAP={
+    off:     {i:'☁', t:'Off',    cls:'off'    },
+    idle:    {i:'☁', t:'Sync',   cls:'idle'   },
+    syncing: {i:'↻', t:'...',    cls:'syncing'},
+    synced:  {i:'✓', t:'Synced', cls:'synced' },
+    error:   {i:'✗', t:'Error',  cls:'error'  },
+  };
+  const s=MAP[state]||MAP.off;
+  pill.className='syncPill '+s.cls;
+  icon.textContent=s.i;
+  lbl.textContent=s.t;
+  const STATUS={
+    off:    'Not configured — enter Supabase URL and key below',
+    idle:   'Connected and ready',
+    syncing:'Syncing with cloud...',
+    synced: 'All data synced \u2713',
+    error:  'Connection error — check your URL and key',
+  };
+  const el=document.getElementById('syncStatusText');
+  if(el) el.textContent=STATUS[state]||'';
+}
+
+/* ── Initialize Supabase client with Anonymous Auth ───────────────
+   Uses supabase.auth.signInAnonymously() so each device gets a real
+   cryptographic auth.uid(). This is the identity enforced by RLS —
+   no one can write to another user's rows without their JWT.       */
+function initSupabase(){
+  loadSyncCfg();
+  if(!syncCfg.url || !syncCfg.key || !syncCfg.enabled){ updateSyncPill('off'); return; }
+  if(!window.supabase){ console.warn('Supabase SDK not loaded'); updateSyncPill('error'); return; }
+  try{
+    if(sbChannel){ try{ sbChannel.unsubscribe(); }catch(e){} sbChannel=null; }
+    sbClient=window.supabase.createClient(syncCfg.url, syncCfg.key, {
+      realtime:{ params:{ eventsPerSecond:2 } },
+      auth:{
+        persistSession:  true,
+        autoRefreshToken: true,
+        storageKey: 'pomo_sb_session',
+      }
+    });
+    updateSyncPill('syncing');
+    /* Sign in anonymously — gets or reuses existing session */
+    signInAndSync();
+  }catch(e){
+    console.warn('Supabase init error:',e);
+    updateSyncPill('error');
+  }
+}
+
+async function signInAndSync(){
+  if(!sbClient) return;
+  try{
+    /* Check for existing session first */
+    const { data:{ session } } = await sbClient.auth.getSession();
+    if(session && session.user){
+      syncCfg.userId = session.user.id;
+      saveSyncCfg();
+    } else {
+      /* No session — sign in anonymously (creates a new anonymous user) */
+      const { data, error } = await sbClient.auth.signInAnonymously();
+      if(error) throw error;
+      syncCfg.userId = data.user.id;
+      saveSyncCfg();
+    }
+    updateSyncPill('idle');
+    renderSyncSettingsUI();   // refresh Device ID display
+    fullSync();
+    subscribeRealtime();
+    flushSyncQueue();
+  }catch(e){
+    console.warn('Supabase auth error:', e);
+    updateSyncPill('error');
+    showToast('Sync auth failed — check Anon Sign-in is enabled');
+  }
+}
+
+/* ── Full sync: pull remote, merge into local, push gaps ─────── */
+async function fullSync(){
+  if(!sbClient || !syncCfg.enabled){ showToast('Sync not configured'); return; }
+  updateSyncPill('syncing');
+  try{
+    const {data,error}=await sbClient
+      .from('pomodoro_history')
+      .select('date,count')
+      .eq('user_id',syncCfg.userId);
+    if(error) throw error;
+
+    // Merge remote into local (take max per day)
+    let changed=false;
+    if(data && data.length>0){
+      data.forEach(row=>{
+        const k=row.date, remote=parseInt(row.count,10)||0, local=history[k]||0;
+        if(remote>local){ history[k]=remote; changed=true; }
+      });
+      if(changed){ saveHistory(); renderAll(); }
+    }
+
+    // Push any local days that are higher than remote
+    await pushLocalGaps(data||[]);
+
+    updateSyncPill('synced');
+    setTimeout(()=>updateSyncPill('idle'),2500);
+  }catch(e){
+    console.warn('fullSync error:',e);
+    updateSyncPill('error');
+  }
+}
+
+/* ── Push local days that remote is missing or lower than ────── */
+async function pushLocalGaps(remoteRows){
+  if(!sbClient) return;
+  const rMap={};
+  (remoteRows||[]).forEach(r=>{ rMap[r.date]=parseInt(r.count,10)||0; });
+  const toUpsert=[];
+  Object.keys(history).forEach(date=>{
+    const local=history[date]||0, remote=rMap[date]||0;
+    if(local>remote) toUpsert.push({user_id:syncCfg.userId,date,count:local,updated_at:new Date().toISOString()});
+  });
+  if(toUpsert.length===0) return;
+  const {error}=await sbClient.from('pomodoro_history')
+    .upsert(toUpsert,{onConflict:'user_id,date'});
+  if(error) console.warn('pushLocalGaps error:',error);
+}
+
+/* ── Push a single day (called on every pomodoro completion) ─── */
+async function sbPush(date, count){
+  if(!syncCfg.enabled){ return; }
+  if(!sbClient){
+    syncQueue.push({date,count});
+    return;
+  }
+  updateSyncPill('syncing');
+  try{
+    const {error}=await sbClient
+      .from('pomodoro_history')
+      .upsert(
+        {user_id:syncCfg.userId, date, count, updated_at:new Date().toISOString()},
+        {onConflict:'user_id,date'}
+      );
+    if(error) throw error;
+    updateSyncPill('synced');
+    setTimeout(()=>updateSyncPill('idle'),2000);
+  }catch(e){
+    console.warn('sbPush error:',e);
+    syncQueue.push({date,count});
+    updateSyncPill('error');
+  }
+}
+
+/* ── Flush offline queue ──────────────────────────────────────── */
+async function flushSyncQueue(){
+  if(!sbClient || syncQueue.length===0) return;
+  const q=[...syncQueue]; syncQueue=[];
+  for(const item of q) await sbPush(item.date,item.count);
+}
+
+/* ── Real-time subscription ───────────────────────────────────── */
+function subscribeRealtime(){
+  if(!sbClient) return;
+  if(sbChannel){ try{sbChannel.unsubscribe();}catch(e){} }
+  sbChannel=sbClient
+    .channel('focus-rt-'+syncCfg.userId)
+    .on('postgres_changes',{
+      event:'*', schema:'public', table:'pomodoro_history',
+      filter:'user_id=eq.'+syncCfg.userId,
+    }, payload=>{
+      const row=payload.new;
+      if(!row||!row.date) return;
+      const k=row.date, remote=parseInt(row.count,10)||0, local=history[k]||0;
+      if(remote>local){
+        history[k]=remote; saveHistory(); renderAll();
+        showToast('\u2601\uFE0F Synced from another device');
+      }
+    })
+    .subscribe();
+}
+
+/* ── Settings: save/test/disconnect ──────────────────────────── */
+function saveSyncSettings(){
+  const url=(document.getElementById('sbUrl')?.value||'').trim();
+  const key=(document.getElementById('sbKey')?.value||'').trim();
+  if(!url || !key){ showToast('Enter both URL and key'); return; }
+  if(!url.startsWith('https://')){ showToast('URL must start with https://'); return; }
+  syncCfg.url=url; syncCfg.key=key; syncCfg.enabled=true;
+  saveSyncCfg();
+  if(sbChannel){ try{sbChannel.unsubscribe();}catch(e){} sbChannel=null; }
+  sbClient=null;
+  initSupabase();
+  showToast('Sync settings saved \u2713');
+}
+
+async function testSbConnection(){
+  const url=(document.getElementById('sbUrl')?.value||'').trim();
+  const key=(document.getElementById('sbKey')?.value||'').trim();
+  if(!url||!key){ showToast('Enter URL and key first'); return; }
+  if(!window.supabase){ showToast('Supabase SDK not loaded'); return; }
+  showToast('Testing...');
+  try{
+    const client=window.supabase.createClient(url,key,{auth:{persistSession:false}});
+    const { data:authData, error:authErr } = await client.auth.signInAnonymously();
+    if(authErr){
+      if(authErr.message && authErr.message.includes('not enabled')){
+        showToast('Enable Anon Sign-in: Auth > Providers > Anonymous');
+      } else {
+        showToast('Auth failed: ' + authErr.message);
+      }
+      return;
+    }
+    const { error:dbErr } = await client.from('pomodoro_history').select('count').limit(1);
+    if(dbErr && dbErr.code==='42P01'){
+      showToast('Auth OK but table missing — run the SQL');
+    } else if(dbErr){
+      showToast('Table issue: ' + dbErr.message);
+    } else {
+      showToast('Auth, table & RLS all working!');
+    }
+    await client.auth.signOut();
+  }catch(e){
+    showToast('Failed — check URL and key');
+    console.warn('Test failed:',e);
+  }
+}
+
+function disconnectSync(){
+  syncCfg.enabled=false; saveSyncCfg();
+  if(sbChannel){ try{sbChannel.unsubscribe();}catch(e){} sbChannel=null; }
+  sbClient=null;
+  updateSyncPill('off');
+  showToast('Sync disconnected');
+  renderSyncSettingsUI();
+}
+
+/* ── Device ID helpers ────────────────────────────────────────── */
+function copyUserId(){
+  if(!syncCfg.userId) return;
+  (navigator.clipboard
+    ? navigator.clipboard.writeText(syncCfg.userId)
+    : Promise.reject()
+  ).then(()=>showToast('Device ID copied \u2713'))
+   .catch(()=>showToast('ID: '+syncCfg.userId));
+}
+
+async function generateTransferCode(){
+  if(!sbClient){ showToast('Connect to Supabase first'); return; }
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  let code = '';
+  for(let i=0;i<6;i++) code += chars[Math.floor(Math.random()*chars.length)];
+  try{
+    const { error } = await sbClient.from('transfer_codes').insert({
+      code, user_id: syncCfg.userId
+    });
+    if(error) throw error;
+    const inp = document.getElementById('sbUidInput');
+    if(inp){ inp.value = code; inp.type='text'; }
+    navigator.clipboard?.writeText(code).catch(()=>{});
+    showToast('Code: ' + code + ' — valid 10 min. Enter on other device.');
+  }catch(e){
+    console.warn('generateTransferCode error:', e);
+    showToast('Failed — ensure transfer_codes table exists (run SQL)');
+  }
+}
+
+async function applyUserId(){
+  const inp = document.getElementById('sbUidInput');
+  const val = (inp?.value||'').trim().toUpperCase();
+  if(!val || val.length < 6){ showToast('Enter the 6-character transfer code'); return; }
+  if(!sbClient){ showToast('Connect to Supabase first'); return; }
+  try{
+    const { data, error } = await sbClient
+      .from('transfer_codes')
+      .select('user_id, expires_at, used')
+      .eq('code', val)
+      .single();
+    if(error || !data){ showToast('Code not found — generate a new one'); return; }
+    if(data.used){ showToast('Code already used — generate a new one'); return; }
+    if(new Date(data.expires_at) < new Date()){ showToast('Code expired — generate a new one'); return; }
+    await sbClient.from('transfer_codes').update({ used: true }).eq('code', val);
+    syncCfg.userId = data.user_id;
+    saveSyncCfg();
+    if(inp) inp.value = '';
+    renderSyncSettingsUI();
+    fullSync();
+    showToast('Linked! Syncing history...');
+  }catch(e){
+    console.warn('applyUserId error:', e);
+    showToast('Failed to redeem code');
+  }
+}
+
+function toggleKeyVis(){
+  const inp=document.getElementById('sbKey');
+  const btn=document.getElementById('sbKeyToggle');
+  if(!inp) return;
+  if(inp.type==='password'){ inp.type='text'; if(btn) btn.textContent='Hide'; }
+  else { inp.type='password'; if(btn) btn.textContent='Show'; }
+}
+
+function copySql(){
+  (navigator.clipboard
+    ? navigator.clipboard.writeText(SYNC_SQL)
+    : Promise.reject()
+  ).then(()=>showToast('SQL copied \u2713'))
+   .catch(()=>showToast('Copy the SQL from the box manually'));
+}
+
+/* ── Populate sync UI fields when Settings tab opens ─────────── */
+function toggleSqlPanel(){
+  var panel = document.getElementById('sqlPanel');
+  var btn   = document.getElementById('sqlToggleBtn');
+  if(!panel) return;
+  var open = panel.style.display === 'block';
+  panel.style.display = open ? 'none' : 'block';
+  if(btn) btn.textContent = (open
+    ? 'One-time SQL setup & instructions ▸'
+    : 'One-time SQL setup & instructions ▾');
+}
+
+function renderSyncSettingsUI(){
+  const urlEl=document.getElementById('sbUrl');
+  const keyEl=document.getElementById('sbKey');
+  const uidEl=document.getElementById('sbUserId');
+  const sqlEl=document.getElementById('sqlBlock');
+  if(urlEl && !urlEl.value) urlEl.value=syncCfg.url||'';
+  if(keyEl && !keyEl.value) keyEl.value=syncCfg.key||'';
+  if(uidEl) uidEl.textContent=syncCfg.userId||'';
+  if(sqlEl) sqlEl.textContent=SYNC_SQL;
+  updateSyncPill(sbClient&&syncCfg.enabled ? 'idle' : 'off');
+}
+
+/* ── Export / Import JSON ─────────────────────────────────────── */
+function exportData(){
+  const payload=JSON.stringify({version:1,history,exported:new Date().toISOString()},null,2);
+  const blob=new Blob([payload],{type:'application/json'});
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(blob);
+  a.download='focus-history-'+todayKey()+'.json';
+  a.click();
+  showToast('History exported \u2713');
+}
+
+function importData(){
+  const inp=document.createElement('input');
+  inp.type='file'; inp.accept='.json,application/json';
+  inp.onchange=async e=>{
+    const file=e.target.files[0]; if(!file) return;
+    try{
+      const text=await file.text();
+      const parsed=JSON.parse(text);
+      const imported=parsed.history||parsed;
+      let merged=0;
+      Object.keys(imported).forEach(k=>{
+        if(/^\d{4}-\d{2}-\d{2}$/.test(k)){
+          const v=parseInt(imported[k],10)||0;
+          if(v>(history[k]||0)){ history[k]=v; merged++; }
+        }
+      });
+      saveHistory();
+      if(sbClient&&syncCfg.enabled) await pushLocalGaps([]);
+      renderAll();
+      showToast('Imported '+merged+' day(s) \u2713');
+    }catch(err){
+      showToast('Import failed \u2014 invalid file');
+    }
+  };
+  inp.click();
+}
+
+
+function setWidgetMode(mode){
+  settings.widgetMode = (mode === 'timer') ? 'timer' : 'music';
+  saveSettings();
+  renderSoundModeUI();
+  if(state.status === 'running' && state.phase === 'pomodoro'){
+    if(settings.widgetMode === 'timer'){ bgMusicStop(); activateSilentAudio(); showToast('Timer widget on — music is off'); }
+    else { _bgFailed = false; bgMusicStart(); showToast('Music on'); }
+  }else{
+    showToast(settings.widgetMode === 'timer' ? 'Timer widget — music stays off' : 'Music — plays when the timer runs');
+  }
+}
+
+function setCustomSoundMode(mode){
+  settings.customSoundMode = mode;
+  saveSettings();
+  renderSoundModeUI();
+  if(mode === 'background'){
+    if(state.status === 'running' && state.phase === 'pomodoro') bgMusicStart();
+  } else {
+    bgMusicStop();
+    decodeAllNotif();   // notification mode plays from decoded buffers
+  }
+}
+
+function renderSoundModeUI(){
+  const sel  = document.getElementById('customModeSelect');
+  const desc = document.getElementById('customModeDesc');
+  const bgRow= document.getElementById('bgMusicRow');
+  const bgVol= document.getElementById('bgVolSlider');
+  const mode = settings.customSoundMode || 'background';
+  if(sel)  sel.value = mode;
+  if(desc){
+    desc.textContent = mode === 'background' ? 'Starts with ▶, pauses with ⏸, stops on reset and on breaks'
+                                             : 'Plays only when the timer finishes';
+    desc.hidden = false;
+  }
+  if(bgRow) bgRow.style.display = (mode === 'background' && settings.widgetMode !== 'timer') ? 'flex' : 'none';
+  const wRow = document.getElementById('widgetRow'), wSel = document.getElementById('widgetModeSelect'), wDesc = document.getElementById('widgetDesc');
+  if(wRow) wRow.style.display = mode === 'background' ? 'flex' : 'none';
+  if(wSel) wSel.value = settings.widgetMode === 'timer' ? 'timer' : 'music';
+  if(wDesc) wDesc.textContent = settings.widgetMode === 'timer'
+    ? 'Lock screen & Dynamic Island show the minutes icon and countdown. Music stays off.'
+    : 'Music plays; the lock screen shows your song instead of the timer.';
+  if(bgVol){
+    bgVol.value = settings.bgMusicVolume ?? 0.5;
+    const ok = elementVolumeWorks();      // false on iOS: volume is device-controlled
+    bgVol.disabled = !ok;
+    const lbl = document.getElementById('bgVolLabel');
+    if(lbl) lbl.textContent = ok ? 'Music Volume' : 'Music Volume (use device buttons)';
+  }
+}
+
+
+/* ── Lock screen install guidance (context-aware) ─────────────── */
+function renderLockScreenNote(){
+  const el = document.getElementById('lockScreenInstructions');
+  if(!el) return;
+  const ua = navigator.userAgent;
+  const isIOS = /iPad|iPhone|iPod/.test(ua);
+  const isAndroid = /Android/.test(ua);
+  const isPWA = window.matchMedia('(display-mode: standalone)').matches
+             || (navigator.standalone === true);
+
+  if(isIOS && !isPWA){
+    el.innerHTML =
+      '<strong style="color:var(--accent)">Not installed as an app</strong><br>'
+      + '1. Tap the Share icon (□↑) in Safari<br>'
+      + '2. Tap <strong>"Add to Home Screen"</strong><br>'
+      + '3. Open Focus from your Home Screen<br>'
+      + '4. Start the timer → lock your screen<br>'
+      + '5. Now Playing widget appears with ▶ ⏸ ⏭ controls<br>'
+      + '<em style="color:var(--text3)">Requires iOS 16.4+ · Works in Safari only</em>';
+  } else if(isIOS && isPWA){
+    el.innerHTML =
+      '<strong style="color:#5d8a5e">✓ Running as installed app</strong><br>'
+      + 'Lock screen controls should work automatically.<br>'
+      + 'Start the timer, lock your screen → check Now Playing widget.';
+  } else if(isAndroid && !isPWA){
+    el.innerHTML =
+      '<strong style="color:var(--accent)">Not installed as an app</strong><br>'
+      + '1. Tap the browser menu (⋮)<br>'
+      + '2. Tap <strong>"Add to Home Screen"</strong> or <strong>"Install app"</strong><br>'
+      + '3. Open Focus from Home Screen<br>'
+      + '4. Start the timer → lock screen shows media controls';
+  } else if(isAndroid && isPWA){
+    el.innerHTML =
+      '<strong style="color:#5d8a5e">✓ Running as installed app</strong><br>'
+      + 'Lock screen controls active. Start the timer to see them.';
+  } else {
+    el.innerHTML =
+      '1. Start the timer<br>'
+      + '2. Lock screen / switch apps<br>'
+      + '3. Media controls appear in Now Playing / notification shade<br>'
+      + '<em style="color:var(--text3)">Desktop: appears in OS media controls</em>';
+  }
+}
+
+document.addEventListener('DOMContentLoaded', init);
+</script>
+</body>
+</html>
