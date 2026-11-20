@@ -415,7 +415,8 @@
       </button>
     </div>
     </div>
-    <div class="quoteWrap"><div class="quoteText" id="quoteText">"The secret of getting ahead is getting started." — Mark Twain</div></div>
+    <div class="quoteWrap"><div class="quoteText" id="quoteText">"The secret of getting ahead is getting started." — Mark Twain</div>
+      <div id="buildTag" style="margin-top:10px;font-size:9px;letter-spacing:.4px;color:var(--text2);opacity:.45;font-style:normal"></div></div>
   </div>
 
   <!-- STATS -->
@@ -614,7 +615,7 @@
         <div class="sRow"><div class="dataBtns"><button class="fileBtn" onclick="exportData()">Export JSON</button><button class="fileBtn" onclick="importData()">Import JSON</button></div></div>
       </div>
       <button class="applyBtn" onclick="applySettings()">Apply &amp; save</button>
-      <div class="sSub" id="buildStamp" style="text-align:center;margin:-10px 0 22px;opacity:.6">Build 2026-11-20 · audio-v9</div>
+      <div class="sSub" id="buildStamp" style="text-align:center;margin:-10px 0 22px;opacity:.6">Build 2026-11-20 · audio-v10</div>
     </div>
   </div>
 </div>
@@ -692,7 +693,7 @@ const DEF_STATE = {
 };
 
 let settings={...DEF_SETTINGS}, state={...DEF_STATE}, history={};
-const BUILD_NUM = 9;                                // bump on every release; shown in Settings and used for the update check
+const BUILD_NUM = 10;                                // bump on every release; shown in Settings and used for the update check
 const _ls = { meta:0, pos:0, err:'', last:'' };   // lock-screen update counters (shown in Settings)
 let audioCtx=null, tickId=null, silentNode=null, silentAudioEl=null, mediaHeartbeat=null;
 let bgAudio=null;  // background music <audio> element (see CUSTOM AUDIO)
@@ -714,6 +715,7 @@ function init(){
   requestPersistentStorage();
   loadCustomAudio();
   setTimeout(checkForUpdate, 2500);
+  renderBuildTag(); setInterval(renderBuildTag, 1000);
   document.addEventListener('visibilitychange', function(){ if(document.visibilityState === 'visible') setTimeout(checkForUpdate, 1500); });
   // Init Supabase after a tick so DOM is fully ready
   setTimeout(initSupabase, 100);
@@ -760,6 +762,7 @@ function tick(){
        - mutateMetadata()      → mutates title+artwork IN-PLACE (every min)
          In-place mutation does NOT reset setPositionState.             */
     updatePositionState();   // scrub bar — safe, only from tick()
+    renderBuildTag();
     mutateMetadata();        // icon + title — in-place, safe during playback
     if(settings.tickSound && audioCtx) playTick();
     lastSec=s;
@@ -1005,6 +1008,15 @@ function checkForUpdate(){
       bar.onclick = function(){ location.href = location.pathname + '?v=' + m[1]; };
       document.body.appendChild(bar);
     }).catch(function(){});
+}
+function renderBuildTag(){
+  const el = document.getElementById('buildTag'); if(!el) return;
+  const clip = silentAudioEl && !silentAudioEl.paused ? 'on' : 'off';
+  const music = bgAudio && bgAudio._track && !bgAudio.paused ? 'on' : 'off';
+  const widget = settings.customSoundMode === 'background' ? (settings.widgetMode === 'timer' ? 'timer' : 'music') : 'alert';
+  const t = 'v' + BUILD_NUM + ' · lock screen ' + (settings.lockScreen ? 'on' : 'OFF') + ' · widget ' + widget
+          + ' · clip ' + clip + ' · music ' + music + ' · sent ' + _ls.meta + '/' + _ls.pos + (_ls.err ? ' · ' + _ls.err : '');
+  if(el.textContent !== t) el.textContent = t;
 }
 function renderBuildStamp(){
   const el = document.getElementById('buildStamp'); if(!el) return;
@@ -1395,7 +1407,14 @@ function isIOS(){
 }
 /* iOS mutes Web Audio when the ring/silent switch is on, but not media-element playback; asking for the
    'playback' session (Safari 16.4+) makes everything audible regardless of the switch. */
-function setPlaybackSession(){
+/* Is any custom audio going to play? (If not, leave iOS's own audio-session handling alone, like the original app.) */
+function customAudioInUse(){
+  if(!customItems.length) return false;
+  if(settings.customSoundMode === 'background') return settings.widgetMode !== 'timer';
+  return settings.selectedSound === 'custom';
+}
+function setPlaybackSession(force){
+  if(!force && !customAudioInUse()) return;
   try{ if(navigator.audioSession && navigator.audioSession.type !== 'playback') navigator.audioSession.type = 'playback'; }catch(e){}
 }
 function elementVolumeWorks(){
@@ -1822,10 +1841,13 @@ function unlockEl(el){
 
 /* iOS plays only ONE media element at a time (a newer one pauses the older), so unlock just the element the
    current mode will use — never several silent clips at once, and never while real audio is playing. */
-function unlockTarget(){ return settings.customSoundMode === 'background' ? bgAudio : notifEl; }
+function unlockTarget(){
+  if(!customAudioInUse()) return null;            // nothing custom will play: no extra clips (keeps the lock-screen clip undisturbed)
+  return settings.customSoundMode === 'background' ? bgAudio : notifEl;
+}
 function allAudioUnlocked(){
   const el = unlockTarget();
-  return !!(audioCtx && audioCtx.state === 'running' && el && (el._tried || el._unlocked));
+  return !!(audioCtx && audioCtx.state === 'running' && (!el || el._tried || el._unlocked));
 }
 
 function unlockAudio(){
@@ -1841,7 +1863,7 @@ function unlockAudio(){
     const b = audioCtx.createBuffer(1, 1, 22050), s = audioCtx.createBufferSource();
     s.buffer = b; s.connect(audioCtx.destination); s.start(0);
   }catch(e){}
-  unlockEl(unlockTarget());
+  const ut = unlockTarget(); if(ut) unlockEl(ut);
   decodeAllNotif();
 }
 /* touchend/click are what iOS counts as activation (touchstart is not). Kept for the page's lifetime:
@@ -1892,7 +1914,7 @@ function playCustomNotification(){
 
   const el = ensureNotifEl();
   try{
-    setPlaybackSession();
+    setPlaybackSession(true);
     el._real = it.url;
     el.src = it.url;
     el.volume = settings.soundVolume;       // ignored on iOS, fine elsewhere
@@ -1922,7 +1944,7 @@ function playNotif(preview){
   (map[settings.selectedSound] || map.bell)();
 }
 function previewSound(){
-  unlockAudio(); setPlaybackSession();
+  unlockAudio(); setPlaybackSession(true);
   if(bgAudio && bgAudio._track && !bgAudio.paused){ _bgIntent = false; }   // the preview takes iOS's one audio slot; ▶ resumes the music
   playNotif(true);
   if(settings.selectedSound === 'custom' && customItems.length){
