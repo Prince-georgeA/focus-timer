@@ -7,7 +7,7 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="Focus">
   <meta name="mobile-web-app-capable" content="yes">
-  <meta name="theme-color" id="themeColorMeta" content="#07091a">
+  <meta name="theme-color" id="themeColorMeta" content="#0c0f1f">
   <title>Focus — Pomodoro Timer</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -19,18 +19,22 @@
        DARK MODE TOKENS
     ══════════════════════════════════════ */
     :root, [data-theme="dark"] {
-      --bg:          #07091a;
-      --surface:     #0d1028;
-      --surface2:    #141830;
-      --surface3:    #1a2040;
-      --border:      #1e2650;
-      --border2:     #252e60;
-      --accent:      #ff6b6b;
-      --accent-dim:  rgba(255,107,107,0.15);
-      --accent-glow: rgba(255,107,107,0.35);
-      --text:        #eaedf8;
-      --text2:       #7b82b0;
-      --text3:       #3d4470;
+      /* Night palette v2: bg lifted off near-black to cut glare/halation;
+         every pair checked against WCAG (text ≥4.5:1, controls ≥3:1) */
+      --bg:          #0c0f1f;
+      --surface:     #141831;
+      --surface2:    #1b2039;
+      --surface3:    #232945;
+      --border:      #2a3260;   /* dividers — was 1.4:1, now 1.6:1 */
+      --border2:     #343d70;
+      --ctl:         #5a6399;   /* outlines of buttons, switches, inputs — 3.2:1 */
+      --accent:      #f2b45a;   /* amber — warm & calm at night (was coral #ff6b6b); 10.4:1 on bg */
+      --accent-dim:  rgba(242,180,90,0.13);
+      --accent-glow: rgba(242,180,90,0.32);
+      --text:        #e4e6f0;   /* a touch softer than pure white — 15:1, less glare */
+      --text2:       #9ca2ca;   /* was 5.3:1 — now 7.6:1 */
+      --text3:       #7c84b4;   /* was 4:1 — now 5.3:1 */
+      --on-accent:   #0c0f1f;   /* text/icons on amber — 10.4:1 */
       --shadow:      rgba(0,0,0,0.45);
       --font-num:    'Plus Jakarta Sans', sans-serif;
       --font-ui:     'Plus Jakarta Sans', sans-serif;
@@ -57,7 +61,9 @@
       --accent-glow: rgba(176,112,48,0.32);
       --text:        #2c1a07;
       --text2:       #7a5530;
-      --text3:       #b09070;
+      --text3:       #8a6a48;   /* was #b09070 (2.8:1) — now ~4.7:1 */
+      --ctl:         rgba(180,130,70,0.25);   /* same as --border: light mode unchanged */
+      --on-accent:   #ffffff;
       --shadow:      rgba(100,60,20,0.12);
       --font-num:    'Plus Jakarta Sans', sans-serif;
       --font-ui:     'Plus Jakarta Sans', sans-serif;
@@ -86,6 +92,8 @@
       width:100%; max-width:460px; height:100vh; height:100dvh;
       margin:0 auto; display:flex; flex-direction:column;
       padding:0 18px;
+      padding-left:max(18px, env(safe-area-inset-left));
+      padding-right:max(18px, env(safe-area-inset-right));
       padding-top:env(safe-area-inset-top);
       padding-bottom:env(safe-area-inset-bottom);
     }
@@ -101,7 +109,6 @@
       background:none; border:none; border-bottom:2px solid transparent; margin-bottom:-1px;
       cursor:pointer; border-radius:0;
     }
-    .tab:hover { color:var(--text); }
     .tab.active { color:var(--text); border-bottom-color:var(--accent); }
 
     /* ─── VIEWS ─── */
@@ -136,20 +143,20 @@
 
     .controls { display:flex; align-items:center; justify-content:center; gap:28px; flex-shrink:0; }
     .ctrlBtn {
-      width:44px; height:44px; border-radius:50%; background:none; border:none; color:var(--text2);
+      width:48px; height:48px; border-radius:50%; background:none; border:none; color:var(--text2);
       display:flex; align-items:center; justify-content:center; cursor:pointer;
       transition:color .18s, transform .12s;
     }
-    .ctrlBtn svg { width:20px; height:20px; }
-    .ctrlBtn:hover  { color:var(--text); }
+    .ctrlBtn svg { width:22px; height:22px; }
     .ctrlBtn:active { transform:scale(.9); }
     .mainBtn {
-      width:68px; height:68px; border-radius:50%; background:var(--accent); border:none;
+      width:72px; height:72px; border-radius:50%; background:var(--accent); border:none; color:var(--on-accent);
+      box-shadow:0 8px 24px -6px var(--accent-glow);
       display:flex; align-items:center; justify-content:center; cursor:pointer;
-      transition:transform .15s, opacity .15s;
+      transition:transform .15s, opacity .15s, box-shadow .25s;
     }
     .mainBtn svg { width:26px; height:26px; }
-    .mainBtn:hover  { opacity:.9; }
+    .mainBtn svg, .mainBtn svg * { fill:var(--on-accent); }
     .mainBtn:active { transform:scale(.94); }
 
     /* ══════════════════════════════════════
@@ -160,24 +167,22 @@
     .statNum { font-weight:300; font-size:56px; line-height:1; font-variant-numeric:tabular-nums; color:var(--text); }
     .statLbl { font-size:11px; font-weight:500; letter-spacing:2px; text-transform:uppercase; color:var(--text2); }
     .adjRow  { display:flex; gap:10px; margin-top:2px; }
-    .adjBtn  { width:32px; height:32px; border-radius:50%; border:1px solid var(--border); background:none; color:var(--text2); font-size:16px; line-height:1; cursor:pointer; display:flex; align-items:center; justify-content:center; padding:0; transition:color .15s, border-color .15s, transform .1s; }
-    .adjBtn:hover  { color:var(--accent); border-color:var(--accent); }
+    .adjBtn  { width:40px; height:40px; border-radius:50%; border:1px solid var(--border); background:none; color:var(--text2); font-size:16px; line-height:1; cursor:pointer; display:flex; align-items:center; justify-content:center; padding:0; transition:color .15s, border-color .15s, transform .1s; }
     .adjBtn:active { transform:scale(.88); }
 
     .calBlock { padding-top:22px; }
     .calNav   { display:flex; align-items:center; justify-content:space-between; margin-bottom:20px; }
     .calTitle { font-size:13px; font-weight:500; color:var(--text2); }
-    .navBtn   { background:none; border:none; color:var(--text2); padding:6px 14px; cursor:pointer; font-size:20px; line-height:1; }
-    .navBtn:hover { color:var(--accent); }
+    .navBtn   { background:none; border:none; color:var(--text2); padding:8px 16px; min-width:44px; min-height:44px; border-radius:10px; cursor:pointer; font-size:20px; line-height:1; }
 
     .weekGrid { display:grid; grid-template-columns:repeat(7,1fr); gap:8px; }
     .wCol { display:flex; flex-direction:column; align-items:center; gap:6px; }
-    .wDay { font-size:10px; color:var(--text2); letter-spacing:.5px; }
+    .wDay { font-size:11px; color:var(--text2); letter-spacing:.5px; }
     .wBarWrap { width:100%; height:80px; display:flex; align-items:flex-end; justify-content:center; border-bottom:1px solid var(--border); }
     .wBar { width:40%; min-width:6px; border-radius:2px 2px 0 0; background:var(--accent); opacity:.4; min-height:2px; transition:height .5s ease; }
     .wBar.today { opacity:1; }
     .wCount { font-size:11px; color:var(--text2); font-variant-numeric:tabular-nums; }
-    .wDate  { font-size:10px; color:var(--text2); }
+    .wDate  { font-size:11px; color:var(--text2); }
     .wCol.today .wDate, .wCol.today .wDay { color:var(--accent); }
 
     /* ══════════════════════════════════════
@@ -191,17 +196,17 @@
     .sSub   { font-size:11px; color:var(--text2); margin-top:3px; }
 
     .stepper { display:flex; align-items:center; gap:4px; flex-shrink:0; }
-    .stepBtn { width:34px; height:34px; border-radius:50%; display:flex; align-items:center; justify-content:center; cursor:pointer; color:var(--text2); font-size:16px; background:none; border:1px solid var(--border); font-family:var(--font-ui); padding:0; }
-    .stepBtn:hover { border-color:var(--accent); color:var(--accent); }
+    .stepBtn { width:40px; height:40px; border-radius:50%; display:flex; align-items:center; justify-content:center; cursor:pointer; color:var(--text2); font-size:16px; background:none; border:1px solid var(--border); font-family:var(--font-ui); padding:0; }
     .stepVal { min-width:44px; text-align:center; font-size:14px; font-weight:400; color:var(--text); font-variant-numeric:tabular-nums; }
 
-    .tog { width:42px; height:23px; border-radius:12px; background:var(--surface2); border:1px solid var(--border); cursor:pointer; position:relative; flex-shrink:0; }
-    .tog::after { content:''; width:17px; height:17px; background:var(--text3); border-radius:50%; position:absolute; top:2px; left:2px; transition:all .3s; }
+    .tog { width:44px; height:26px; border-radius:12px; background:var(--surface2); border:1px solid var(--border); cursor:pointer; position:relative; flex-shrink:0; }
+    .tog::after { content:''; width:20px; height:20px; background:var(--text3); border-radius:50%; position:absolute; top:2px; left:2px; transition:all .3s; }
+    .tog::before { content:''; position:absolute; inset:-10px -6px; } /* bigger invisible hit area */
     .tog.on { background:var(--accent); border-color:var(--accent); }
-    .tog.on::after { transform:translateX(19px); background:#fff; }
+    .tog.on::after { transform:translateX(18px); background:#fff; }
     [data-theme="light"] .tog.on::after { background:#fefae0; }
 
-    .sSelect { background:var(--surface2); border:1px solid var(--border); color:var(--text); border-radius:8px; padding:6px 10px; font-family:var(--font-ui); font-size:12px; cursor:pointer; outline:none; flex-shrink:0; }
+    .sSelect { background:var(--surface2); border:1px solid var(--border); color:var(--text); border-radius:8px; padding:8px 10px; max-width:60%; min-height:36px; text-overflow:ellipsis; font-family:var(--font-ui); font-size:12px; cursor:pointer; outline:none; flex-shrink:0; }
     /* Sliders: big enough to grab with a finger; padding enlarges the hit area without a fat track */
     input[type=range] { -webkit-appearance:none; appearance:none; width:140px; height:24px; padding:9px 0; box-sizing:border-box; border-radius:0; background:linear-gradient(to right, var(--accent) var(--pct,50%), rgba(128,128,128,.35) var(--pct,50%)); background-clip:content-box; outline:none; cursor:pointer; touch-action:manipulation; }
     input[type=range]:disabled { opacity:.4; cursor:not-allowed; }
@@ -209,18 +214,15 @@
     input[type=range]::-webkit-slider-thumb { -webkit-appearance:none; width:22px; height:22px; margin-top:-8px; border-radius:50%; background:var(--accent); border:2px solid var(--bg, #07091a); box-shadow:0 1px 4px rgba(0,0,0,.4); cursor:pointer; }
     input[type=range]::-moz-range-track { height:6px; border-radius:3px; background:linear-gradient(to right, var(--accent) var(--pct,50%), rgba(128,128,128,.35) var(--pct,50%)); }
     input[type=range]::-moz-range-thumb { width:18px; height:18px; border-radius:50%; background:var(--accent); border:2px solid var(--bg, #07091a); cursor:pointer; }
-    .fileBtn { padding:6px 12px; background:var(--surface2); border:1px solid var(--border); border-radius:8px; color:var(--text2); font-size:12px; font-family:var(--font-ui); cursor:pointer; white-space:nowrap; flex-shrink:0; }
-    .fileBtn:hover { border-color:var(--accent); color:var(--accent); }
-    .prevBtn { background:none; border:1px solid var(--border); border-radius:6px; color:var(--text3); padding:4px 8px; font-size:11px; cursor:pointer; flex-shrink:0; }
-    .prevBtn:hover { border-color:var(--accent); color:var(--accent); }
+    .fileBtn { padding:8px 14px; min-height:36px; background:var(--surface2); border:1px solid var(--border); border-radius:8px; color:var(--text2); font-size:12px; font-family:var(--font-ui); cursor:pointer; white-space:nowrap; flex-shrink:0; }
+    .prevBtn { background:none; border:1px solid var(--border); border-radius:8px; color:var(--text2); padding:6px 10px; min-height:32px; font-size:11px; font-family:inherit; cursor:pointer; flex-shrink:0; }
     .customFiles { padding:8px 0; border-bottom:1px solid var(--border); }
     .cFile { display:flex; align-items:center; justify-content:space-between; padding:3px 0; }
     .cFileName { font-size:12px; color:var(--text); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-    .cFileRm { cursor:pointer; color:var(--text2); font-size:13px; padding:4px 8px; flex-shrink:0; }
-    .cFileRm:hover { color:#cc3333; }
+    .cFileRm { cursor:pointer; color:var(--text2); font-size:13px; padding:8px 12px; flex-shrink:0; }
 
-    .applyBtn { width:100%; padding:14px; background:none; border:1px solid var(--accent); border-radius:var(--r); color:var(--accent); font-family:var(--font-ui); font-size:14px; font-weight:500; cursor:pointer; letter-spacing:.3px; margin-bottom:24px; }
-    .applyBtn:hover { background:var(--accent); color:#fff; }
+    .applyBtn { width:100%; padding:14px; background:none; border:1px solid var(--accent); border-radius:var(--r); color:var(--accent); font-family:var(--font-ui); font-size:14px; font-weight:500; cursor:pointer; letter-spacing:.3px; margin-bottom:24px;
+      position:sticky; bottom:10px; z-index:2; background:var(--bg); box-shadow:0 -16px 20px -6px var(--bg); }
 
     .tipBox { background:var(--surface2); border:1px solid var(--border); border-radius:var(--r); padding:12px 14px; font-size:11px; color:var(--text2); line-height:1.8; }
     .tipBox strong { color:var(--text); }
@@ -229,7 +231,7 @@
 
     /* ─── COMPLETION OVERLAY ─── */
     #doneOverlay { position:fixed; inset:0; z-index:200; display:none; flex-direction:column; align-items:center; justify-content:center; gap:18px; padding:30px; backdrop-filter:blur(14px); -webkit-backdrop-filter:blur(14px); }
-    [data-theme="dark"]  #doneOverlay { background:rgba(7,9,26,.92); }
+    [data-theme="dark"]  #doneOverlay { background:rgba(12,15,31,.94); }
     [data-theme="light"] #doneOverlay { background:rgba(254,250,224,.92); }
     #doneOverlay.show { display:flex; animation:fadeUp .35s ease; }
     @keyframes fadeUp { from{opacity:0;transform:translateY(20px)} to{opacity:1;transform:translateY(0)} }
@@ -237,10 +239,9 @@
     .doneTitle { font-family:var(--font-num); font-size:32px; letter-spacing:4px; color:var(--accent); font-weight:300; text-align:center; }
     .doneMsg   { font-size:14px; color:var(--text2); text-align:center; line-height:1.7; max-width:280px; }
     .doneBtns  { display:flex; gap:12px; }
-    .doneBtn   { padding:11px 26px; border-radius:12px; font-family:var(--font-ui); font-size:13px; font-weight:700; cursor:pointer; letter-spacing:.3px; }
+    .doneBtn   { padding:13px 26px; min-height:46px; border-radius:12px; font-family:var(--font-ui); font-size:13px; font-weight:700; cursor:pointer; letter-spacing:.3px; }
     .doneBtnSec { background:var(--surface); border:1px solid var(--border); color:var(--text2); }
-    .doneBtnPri { background:var(--accent); border:none; color:#fff; }
-    .doneBtnPri:hover { transform:scale(1.03); }
+    .doneBtnPri { background:var(--accent); border:none; color:var(--on-accent); }
 
     #confetti { position:fixed; inset:0; pointer-events:none; z-index:199; overflow:hidden; }
     .confettiPiece { position:absolute; border-radius:2px; animation:fall linear forwards; }
@@ -258,7 +259,7 @@
       backdrop-filter:blur(8px); -webkit-backdrop-filter:blur(8px);
       padding-bottom:env(safe-area-inset-bottom);
     }
-    [data-theme="dark"]  #notifModal { background:rgba(7,9,26,.75); }
+    [data-theme="dark"]  #notifModal { background:rgba(12,15,31,.8); }
     [data-theme="light"] #notifModal { background:rgba(254,250,224,.75); }
     #notifModal.show { display:flex; }
     .nSheet {
@@ -283,7 +284,7 @@
     .nNum {
       display:inline-flex; align-items:center; justify-content:center;
       min-width:20px; height:20px; border-radius:50%;
-      background:var(--accent); color:#fff; font-size:10px; font-weight:700;
+      background:var(--accent); color:var(--on-accent); font-size:10px; font-weight:700;
       margin-top:1px; flex-shrink:0;
     }
     [data-theme="light"] .nNum { color:#fefae0; }
@@ -296,12 +297,11 @@
     .nSheetBtns { display:flex; gap:10px; margin-top:14px; }
     .nBtn { flex:1; padding:12px; border-radius:12px; font-family:var(--font-ui); font-size:13px; font-weight:700; cursor:pointer; }
     .nBtnSec { background:var(--surface2); border:1px solid var(--border); color:var(--text2); }
-    .nBtnPri { background:var(--accent); border:none; color:#fff; }
-    .nBtnPri:hover { opacity:.9; transform:translateY(-1px); }
+    .nBtnPri { background:var(--accent); border:none; color:var(--on-accent); }
     .permBadge {
       display:inline-flex; align-items:center; gap:3px;
-      padding:2px 8px; border-radius:8px; font-size:9px; font-weight:700;
-      letter-spacing:.5px; text-transform:uppercase; margin-top:3px;
+      padding:2px 8px; border-radius:8px; font-size:10px; font-weight:700;
+      letter-spacing:.5px; text-transform:uppercase; margin-top:4px;
     }
     .permBadge.granted { background:rgba(93,138,94,.2);  color:#5d8a5e; }
     .permBadge.denied  { background:rgba(200,60,60,.15); color:#cc4444; }
@@ -351,7 +351,7 @@
     .sqlBlock {
       background:var(--bg); border:1px solid var(--border);
       border-radius:8px; padding:8px 10px; margin-top:6px;
-      font-size:9px; color:var(--accent); font-family:monospace;
+      font-size:11px; color:var(--accent); font-family:ui-monospace,Menlo,Consolas,monospace; user-select:text; -webkit-user-select:text;
       white-space:pre-wrap; word-break:break-all; line-height:1.6;
       max-height:120px; overflow-y:auto;
     }
@@ -364,6 +364,220 @@
       .timerMain { gap:16px; }
       .quoteWrap { padding-bottom:10px; }
       .quoteText { font-size:11px; line-height:1.5; }
+    }
+
+    /* ══════════════════════════════════════
+       UI REFRESH — layered on top, no IDs or handlers changed
+    ══════════════════════════════════════ */
+
+    /* Hover only on devices that really hover (stops "stuck" hover after a tap on phones/tablets) */
+    @media (hover:hover) {
+      .tab:hover { color:var(--text); }
+      .ctrlBtn:hover  { color:var(--text); background:var(--surface2); }
+      .mainBtn:hover  { opacity:.92; box-shadow:0 10px 30px -6px var(--accent-glow); }
+      .adjBtn:hover  { color:var(--accent); border-color:var(--accent); }
+      .navBtn:hover { color:var(--accent); background:var(--surface2); }
+      .stepBtn:hover { border-color:var(--accent); color:var(--accent); }
+      .fileBtn:hover { border-color:var(--accent); color:var(--accent); }
+      .prevBtn:hover { border-color:var(--accent); color:var(--accent); }
+      .cFileRm:hover { color:#cc3333; }
+      .applyBtn:hover { background:var(--accent); color:var(--on-accent); }
+      .doneBtnPri:hover { transform:scale(1.03); }
+      .nBtnPri:hover { opacity:.9; transform:translateY(-1px); }
+    }
+    /* Pressed feedback for touch */
+    .stepBtn:active, .fileBtn:active, .prevBtn:active, .navBtn:active, .doneBtn:active, .nBtn:active { transform:scale(.95); }
+    .stepBtn, .fileBtn, .prevBtn, .navBtn, .doneBtn, .nBtn { transition:transform .1s, color .15s, border-color .15s, background-color .2s; }
+    .tab:active { color:var(--text); }
+
+    /* Ring: slightly bolder so it reads at a glance from across a desk */
+    .rBg   { stroke-width:3; opacity:.8; }
+    .rProg { stroke-width:4.5; }
+
+    /* Phase caption as a quiet chip */
+    .timerSub { padding:4px 12px; border-radius:20px; background:var(--accent-dim); color:var(--accent); letter-spacing:1.8px; }
+    body[data-status="idle"] .timerSub { background:var(--surface2); color:var(--text2); }
+
+    /* Pomodoros-before-long-break dots */
+    .cycleDots { display:flex; gap:6px; margin-top:14px; min-height:8px; }
+    .cDot { width:7px; height:7px; border-radius:50%; background:var(--border2); transition:background-color .3s, transform .3s; }
+    .cDot.done { background:var(--accent); }
+    .cDot.cur  { background:transparent; box-shadow:inset 0 0 0 1.5px var(--accent); }
+    body[data-status="running"] .cDot.cur { background:var(--accent); animation:dotPulse 2s ease-in-out infinite; }
+    @keyframes dotPulse { 0%,100%{opacity:1} 50%{opacity:.35} }
+
+    /* Paused: digits breathe so it's obvious the clock isn't moving */
+    body[data-status="paused"] .timerDigits { animation:pauseBreath 2.2s ease-in-out infinite; }
+    @keyframes pauseBreath { 0%,100%{opacity:1} 50%{opacity:.4} }
+
+    /* Daily goal line with a thin progress bar */
+    .todayLine { display:flex; flex-direction:column; align-items:center; gap:7px; }
+    .goalBar  { width:120px; height:3px; border-radius:2px; background:var(--border); overflow:hidden; }
+    .goalFill { display:block; height:100%; width:calc(var(--goal,0) * 100%); background:var(--accent); border-radius:2px; transition:width .5s ease; }
+    .todayLine.met .todayTxt { color:var(--accent); }
+
+    /* Keyboard hint — only on devices with a real mouse/keyboard */
+    .kbdHint { display:none; margin-top:10px; font-size:10px; letter-spacing:.4px; color:var(--text3); font-style:normal; }
+    .kbdHint kbd { font-family:inherit; font-size:10px; padding:1px 5px; border:1px solid var(--border2); border-radius:4px; color:var(--text2); }
+    @media (hover:hover) and (pointer:fine) { .kbdHint { display:block; } }
+
+    /* Device ID / SQL can be selected & copied by hand */
+    #sbUserId { font-size:11px !important; user-select:text; -webkit-user-select:text; }
+
+    /* iOS zooms the page when focusing inputs under 16px — prevent that on touch screens */
+    @media (pointer:coarse) {
+      .sInput, .sSelect { font-size:16px; }
+      .sSelect { padding:6px 10px; }
+    }
+
+    /* Tablets & laptops with room to breathe: larger, calmer timer */
+    @media (min-width:700px) and (min-height:760px) {
+      #app { max-width:540px; }
+      .tabs { margin-top:24px; }
+      .tab { font-size:13px; padding:14px 0; }
+      .timerWrap { width:min(380px,60vh); height:min(380px,60vh); }
+      .timerDigits { font-size:clamp(84px,11vh,108px); }
+      .timerSub { font-size:12px; }
+      .mainBtn { width:80px; height:80px; }
+      .mainBtn svg { width:30px; height:30px; }
+      .controls { gap:36px; }
+      .quoteText { font-size:13px; }
+      .sLabel { font-size:15px; }
+      .sSub { font-size:12px; }
+    }
+
+    /* Phones in landscape: ring on the left, controls on the right */
+    @media (orientation:landscape) and (max-height:500px) {
+      .tabs { margin-top:6px; }
+      .tab { padding:9px 0; }
+      #app { max-width:720px; }
+      .timerMain {
+        display:grid; grid-template-columns:auto auto; grid-template-rows:1fr auto auto 1fr;
+        column-gap:56px; row-gap:18px; justify-content:center; align-content:center;
+      }
+      .timerWrap { grid-column:1; grid-row:1 / span 4; align-self:center; width:min(250px,62vh); height:min(250px,62vh); }
+      .todayLine { grid-column:2; grid-row:2; margin-top:0; }
+      .controls  { grid-column:2; grid-row:3; }
+      .timerDigits { font-size:clamp(46px,15vh,62px); }
+      .timerSub { margin-top:8px; font-size:10px; }
+      .cycleDots { margin-top:10px; }
+      .quoteWrap { display:none; }
+      .statPair { padding:18px 0 16px; }
+      #settingsView .scrollable { padding-top:14px; }
+    }
+
+    /* Night palette: visible control outlines, clearer ring track, brighter status colours */
+    .stepBtn, .adjBtn, .tog, .sSelect, .sInput, .fileBtn, .prevBtn, .doneBtnSec, .nBtnSec { border-color:var(--ctl); }
+    [data-theme="dark"] .rBg { stroke:var(--border2); opacity:1; }
+    [data-theme="dark"] .tog::after { background:var(--text2); }
+    [data-theme="dark"] .tog.on::after { background:#fff; }
+    [data-theme="dark"] .syncPill.synced { border-color:#7fb87f; color:#7fb87f; }
+    [data-theme="dark"] .syncPill.error  { border-color:#ff8080; color:#ff8080; }
+    [data-theme="dark"] .permBadge.granted { color:#7fb87f; background:rgba(127,184,127,.14); }
+    [data-theme="dark"] .permBadge.denied  { color:#ff8a8a; background:rgba(255,128,128,.12); }
+
+    /* ══════════════════════════════════════
+       STATS v2 — cards, goal ring, tiles, chart, heatmap
+    ══════════════════════════════════════ */
+    [data-theme="dark"]  { --good:#7fb87f; }
+    [data-theme="light"] { --good:#4f7a50; }
+    #statsView .scrollable { display:flex; flex-direction:column; gap:12px; padding-top:16px; padding-bottom:28px; }
+    .card { background:var(--surface); border:1px solid var(--border); border-radius:18px; padding:18px 16px; }
+    .cardHead { display:flex; align-items:baseline; justify-content:space-between; margin-bottom:14px; font-size:13px; font-weight:600; color:var(--text); }
+    .cardMeta { font-size:11px; font-weight:500; color:var(--text2); }
+
+    /* Today hero */
+    .stHero { display:flex; flex-direction:column; align-items:center; padding:22px 16px 20px;
+      background:radial-gradient(120% 90% at 50% 0%, var(--accent-dim), transparent 70%), var(--surface); }
+    .heroRow { display:flex; align-items:center; justify-content:center; gap:22px; }
+    .heroRow .adjBtn { width:44px; height:44px; font-size:18px; background:var(--surface2); }
+    .heroRing { position:relative; width:148px; height:148px; }
+    .heroRing svg { width:100%; height:100%; transform:rotate(-90deg); }
+    .hrBg   { fill:none; stroke:var(--border2); stroke-width:8; }
+    .hrProg { fill:none; stroke:var(--accent); stroke-width:8; stroke-linecap:round; transition:stroke-dashoffset .8s cubic-bezier(.3,.7,.3,1); }
+    .heroIn { position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:4px; }
+    .heroIn .statNum { font-size:50px; font-weight:300; }
+    .heroOf { font-size:12px; color:var(--text2); letter-spacing:.3px; }
+    .heroLbl { margin-top:14px; font-size:11px; font-weight:600; letter-spacing:2px; text-transform:uppercase; color:var(--text2); }
+    .heroMsg { margin-top:6px; font-size:14px; color:var(--text); text-align:center; }
+    .stHero.met .heroMsg { color:var(--accent); font-weight:600; }
+    .stHero.met .hrProg { filter:drop-shadow(0 0 6px var(--accent-glow)); }
+
+    /* Tiles */
+    .tiles { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+    .tile { padding:14px 14px 13px; display:flex; flex-direction:column; gap:6px; min-width:0; }
+    .tHead { display:flex; align-items:center; gap:7px; font-size:11px; font-weight:600; letter-spacing:1px; text-transform:uppercase; color:var(--text2); }
+    .tHead svg { width:16px; height:16px; flex:none; fill:none; stroke:var(--accent); stroke-width:1.8; stroke-linecap:round; stroke-linejoin:round; }
+    .tNum { font-size:30px; font-weight:400; line-height:1.1; color:var(--text); font-variant-numeric:tabular-nums; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+    .tSub { font-size:12px; color:var(--text2); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+    .tSub.up   { color:var(--good); }
+    .tSub.best { color:var(--accent); font-weight:600; }
+
+    /* Week chart */
+    .calBlock { padding:10px 8px 16px; }
+    .calNav { margin-bottom:10px; }
+    .calHead { text-align:center; min-width:0; }
+    .calBlock .calTitle { font-size:14px; font-weight:600; color:var(--text); }
+    .calSum { margin-top:3px; font-size:11px; color:var(--text2); }
+    .navBtn:disabled { opacity:.25; cursor:default; background:none !important; }
+    .wPlot { position:relative; height:132px; margin:0 8px; }
+    .wGoal { position:absolute; left:0; right:0; height:0; border-top:1px dashed var(--ctl); pointer-events:none; z-index:1; }
+    .wGoal span { position:absolute; right:0; top:-15px; font-size:9px; font-weight:600; letter-spacing:.6px; text-transform:uppercase; color:var(--text2); }
+    .wBars, .wLabels { display:grid; grid-template-columns:repeat(7,1fr); gap:6px; }
+    .wBars { height:100%; align-items:end; border-bottom:1px solid var(--border); }
+    .wLabels { margin:8px 8px 0; }
+    #calGrid .wBarWrap { height:132px; box-sizing:border-box; padding:0; border:0; display:flex; flex-direction:column; justify-content:flex-end; align-items:center; gap:4px; }
+    #calGrid .wBar { flex:none; width:58%; max-width:30px; min-height:0; border-radius:7px 7px 3px 3px; background:var(--accent); opacity:.5; transition:height .5s cubic-bezier(.3,.7,.3,1); }
+    #calGrid .wBar.met   { opacity:1; }
+    #calGrid .wBar.zero  { opacity:1; background:var(--border2); height:3px !important; border-radius:2px; }
+    #calGrid .wBar.today { box-shadow:0 0 0 2px var(--surface), 0 0 0 3.5px var(--accent); }
+    #calGrid .wBar.fut   { opacity:0; }
+    #calGrid .wCount { font-size:11px; font-weight:600; color:var(--text2); line-height:1; }
+    #calGrid .wCount.met { color:var(--accent); }
+    .wLab { display:flex; flex-direction:column; align-items:center; gap:2px; }
+    .wLab .wDay  { font-size:11px; color:var(--text2); }
+    .wLab .wDate { font-size:11px; color:var(--text3); }
+    .wLab.today .wDay, .wLab.today .wDate { color:var(--accent); font-weight:600; }
+
+    /* Heatmap */
+    .hmGrid { display:grid; grid-template-columns:18px repeat(var(--cols,15), 1fr); gap:3px; align-items:center; }
+    .hmMon, .hmRow { font-size:9px; color:var(--text3); line-height:1; white-space:nowrap; }
+    .hmMon { height:12px; overflow:visible; }
+    .hm { display:block; aspect-ratio:1; border-radius:3px; background:var(--surface3); }
+    .hm.l1 { background:var(--accent); opacity:.28; }
+    .hm.l2 { background:var(--accent); opacity:.5; }
+    .hm.l3 { background:var(--accent); opacity:.75; }
+    .hm.l4 { background:var(--accent); }
+    @supports (background:color-mix(in srgb, red 50%, blue)) {
+      .hm.l1 { opacity:1; background:color-mix(in srgb, var(--accent) 28%, var(--surface3)); }
+      .hm.l2 { opacity:1; background:color-mix(in srgb, var(--accent) 50%, var(--surface3)); }
+      .hm.l3 { opacity:1; background:color-mix(in srgb, var(--accent) 75%, var(--surface3)); }
+    }
+    .hm.fut { background:transparent; }
+    .hm.today { box-shadow:0 0 0 1.5px var(--text); }
+    .hm[data-k] { cursor:pointer; }
+    .hmLegend { display:flex; align-items:center; justify-content:flex-end; gap:4px; margin-top:12px; font-size:10px; color:var(--text2); }
+    .hmLegend .hm { width:11px; height:11px; }
+    .hmLegend .hm:first-of-type { margin-left:4px; }
+    .hmLegend .hm:last-of-type { margin-right:4px; }
+
+    @media (min-width:700px) {
+      .tNum { font-size:34px; }
+      .heroRing { width:168px; height:168px; }
+      .heroIn .statNum { font-size:58px; }
+      .wPlot { height:160px; }
+      #calGrid .wBarWrap { height:160px; }
+    }
+    @media (orientation:landscape) and (max-height:500px) {
+      .heroRing { width:118px; height:118px; }
+      .heroIn .statNum { font-size:38px; }
+      .tiles { grid-template-columns:repeat(4,1fr); }
+    }
+
+    /* Respect "reduce motion" */
+    @media (prefers-reduced-motion:reduce) {
+      *, *::before, *::after { animation-duration:.01ms !important; animation-iteration-count:1 !important; transition-duration:.01ms !important; }
+      #confetti { display:none; }
     }
   </style>
   <!-- Supabase JS SDK -->
@@ -391,23 +605,24 @@
       <div class="timerInner">
         <div class="timerDigits" id="timerDigits" role="timer">25:00</div>
         <div class="timerSub"    id="timerSub">READY TO FOCUS</div>
+        <div class="cycleDots" id="cycleDots" role="img" aria-label="Pomodoro cycle progress"></div>
       </div>
     </div>
-    <div class="todayLine"><span id="goalCurrent">0</span> / <span id="goalTarget">8</span> today</div>
+    <div class="todayLine" id="todayLine"><span class="todayTxt"><span id="goalCurrent">0</span> / <span id="goalTarget">8</span> today</span><span class="goalBar" aria-hidden="true"><span class="goalFill"></span></span></div>
     <div class="controls">
-      <button class="ctrlBtn" onclick="resetTimer()" title="Reset" aria-label="Reset">
+      <button class="ctrlBtn" onclick="resetTimer()" title="Reset (R)" aria-label="Reset" aria-keyshortcuts="R">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
           <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/>
           <path d="M3 3v5h5"/>
         </svg>
       </button>
       <!-- Main play / pause button — SVG swapped by updateControlUI() -->
-      <button class="mainBtn" id="mainBtn" onclick="toggleTimer()" title="Start / pause" aria-label="Start or pause">
+      <button class="mainBtn" id="mainBtn" onclick="toggleTimer()" title="Start / pause (Space)" aria-label="Start or pause" aria-keyshortcuts="Space">
         <svg id="mainBtnIcon" viewBox="0 0 24 24" fill="white" stroke="none">
           <polygon points="6,3 20,12 6,21" fill="white"/>
         </svg>
       </button>
-      <button class="ctrlBtn" onclick="skipPhase()" title="Skip" aria-label="Skip to next phase">
+      <button class="ctrlBtn" onclick="skipPhase()" title="Skip (S)" aria-label="Skip to next phase" aria-keyshortcuts="S">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
           <polygon points="5,4 15,12 5,20" fill="currentColor" stroke="none"/>
           <line x1="19" y1="4" x2="19" y2="20"/>
@@ -416,34 +631,76 @@
     </div>
     </div>
     <div class="quoteWrap"><div class="quoteText" id="quoteText">"The secret of getting ahead is getting started." — Mark Twain</div>
-      <div id="buildTag" style="margin-top:10px;font-size:9px;letter-spacing:.4px;color:var(--text2);opacity:.45;font-style:normal"></div></div>
+      <div class="kbdHint"><kbd>Space</kbd> start / pause &nbsp;·&nbsp; <kbd>R</kbd> reset &nbsp;·&nbsp; <kbd>S</kbd> skip</div>
+      <div id="buildTag" style="display:none;margin-top:10px;font-size:9px;letter-spacing:.4px;color:var(--text2);opacity:.45;font-style:normal"></div></div>
   </div>
 
   <!-- STATS -->
   <div class="view" id="statsView">
     <div class="scrollable">
-      <div class="statPair">
-        <div class="statBlock">
-          <div class="statNum" id="stToday">0</div>
-          <div class="statLbl">Today</div>
-          <div class="adjRow">
-            <button class="adjBtn" onclick="adjustToday(-1)" title="Remove one pomodoro" aria-label="Remove one pomodoro from today">&minus;</button>
-            <button class="adjBtn" onclick="adjustToday(1)"  title="Add one pomodoro"    aria-label="Add one pomodoro to today">+</button>
+      <!-- Today: goal ring with the same −/+ controls -->
+      <section class="card stHero" id="stHero" aria-label="Today">
+        <div class="heroRow">
+          <button class="adjBtn" onclick="adjustToday(-1)" title="Remove one pomodoro" aria-label="Remove one pomodoro from today">&minus;</button>
+          <div class="heroRing" id="heroRing" role="img" aria-label="Today's progress">
+            <svg viewBox="0 0 120 120" aria-hidden="true">
+              <circle class="hrBg"   cx="60" cy="60" r="52"/>
+              <circle class="hrProg" id="hrProg" cx="60" cy="60" r="52"/>
+            </svg>
+            <div class="heroIn">
+              <div class="statNum" id="stToday">0</div>
+              <div class="heroOf" id="stGoalOf">of 8</div>
+            </div>
           </div>
+          <button class="adjBtn" onclick="adjustToday(1)"  title="Add one pomodoro"    aria-label="Add one pomodoro to today">+</button>
         </div>
-        <div class="statBlock">
-          <div class="statNum" id="stStreak">0</div>
-          <div class="statLbl">Day streak</div>
+        <div class="heroLbl">Today</div>
+        <div class="heroMsg" id="stTodayMsg">&nbsp;</div>
+      </section>
+
+      <!-- Key numbers -->
+      <div class="tiles">
+        <div class="card tile">
+          <div class="tHead"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3c1 3.5 5 5.5 5 10a5 5 0 0 1-10 0c0-2.2 1.2-3.7 2.3-4.8.3 1.6 1.2 2.6 2.2 2.8C11 8.6 11.4 5.6 12 3z"/></svg>Day streak</div>
+          <div class="tNum" id="stStreak">0</div>
+          <div class="tSub" id="stBest">&nbsp;</div>
+        </div>
+        <div class="card tile">
+          <div class="tHead"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="5" width="17" height="15" rx="2.5"/><path d="M3.5 10h17M8 3v4M16 3v4"/></svg>This week</div>
+          <div class="tNum" id="stWeek">0</div>
+          <div class="tSub" id="stWeekDelta">&nbsp;</div>
+        </div>
+        <div class="card tile">
+          <div class="tHead"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/></svg>Focus time</div>
+          <div class="tNum" id="stFocus">0m</div>
+          <div class="tSub">this week (est.)</div>
+        </div>
+        <div class="card tile">
+          <div class="tHead"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8.5"/><circle cx="12" cy="12" r="4.5"/><circle cx="12" cy="12" r=".8"/></svg>All time</div>
+          <div class="tNum" id="stTotal">0</div>
+          <div class="tSub" id="stActive">&nbsp;</div>
         </div>
       </div>
-      <div class="calBlock">
+
+      <!-- Week chart -->
+      <section class="card calBlock" aria-label="Week chart">
         <div class="calNav">
           <button class="navBtn" onclick="calNav(-1)" aria-label="Previous week">&lsaquo;</button>
-          <div class="calTitle" id="calTitle">This week</div>
-          <button class="navBtn" onclick="calNav(1)" aria-label="Next week">&rsaquo;</button>
+          <div class="calHead">
+            <div class="calTitle" id="calTitle">This week</div>
+            <div class="calSum" id="calSum"></div>
+          </div>
+          <button class="navBtn" id="calNext" onclick="calNav(1)" aria-label="Next week">&rsaquo;</button>
         </div>
         <div id="calGrid"></div>
-      </div>
+      </section>
+
+      <!-- Consistency heatmap -->
+      <section class="card hmBlock" aria-label="Consistency">
+        <div class="cardHead"><span>Consistency</span><span class="cardMeta" id="hmMeta"></span></div>
+        <div id="heatmap"></div>
+        <div class="hmLegend" aria-hidden="true">Less <i class="hm l0"></i><i class="hm l1"></i><i class="hm l2"></i><i class="hm l3"></i><i class="hm l4"></i> More</div>
+      </section>
     </div>
   </div>
 
@@ -587,7 +844,7 @@
             <div class="sSub" style="align-self:center;color:var(--text3);font-size:10px">← on this device first</div>
           </div>
           <div style="display:flex;gap:8px">
-            <input class="sInput" id="sbUidInput" type="text" placeholder="Code from other device" spellcheck="false" style="flex:1;min-width:0;font-size:12px;letter-spacing:2px;text-transform:uppercase"/>
+            <input class="sInput" id="sbUidInput" type="text" placeholder="Code from other device" spellcheck="false" style="flex:1;min-width:0;letter-spacing:2px;text-transform:uppercase"/>
             <button class="fileBtn" onclick="applyUserId()" style="flex-shrink:0">Link</button>
           </div>
           <div class="sSub" style="margin-top:5px;color:var(--text3)">Codes expire after 10 minutes</div>
@@ -616,12 +873,12 @@
         <div class="sRow"><div class="dataBtns"><button class="fileBtn" onclick="exportData()">Export JSON</button><button class="fileBtn" onclick="importData()">Import JSON</button></div></div>
       </div>
       <button class="applyBtn" onclick="applySettings()">Apply &amp; save</button>
-      <div class="sSub" id="buildStamp" style="text-align:center;margin:-10px 0 22px;opacity:.6">Build 2026-11-20 · audio-v13</div>
+      <div class="sSub" id="buildStamp" onclick="var t=document.getElementById('buildTag');if(t)t.style.display=(t.style.display==='none'?'':'none')" style="text-align:center;margin:-10px 0 22px;opacity:.6">Build 2026-11-22 · audio-v19</div>
     </div>
   </div>
 </div>
 
-<div id="doneOverlay">
+<div id="doneOverlay" role="dialog" aria-modal="true" aria-labelledby="doneTitle" aria-describedby="doneMsg">
   <div class="doneIcon" id="doneIcon">🍅</div>
   <div class="doneTitle" id="doneTitle">DONE!</div>
   <div class="doneMsg"   id="doneMsg">Pomodoro complete. Take a well-earned break.</div>
@@ -630,11 +887,11 @@
     <button class="doneBtn doneBtnPri" onclick="dismissDone(true)"><span id="nextLbl">Start Break</span></button>
   </div>
 </div>
-<div id="toast"></div>
+<div id="toast" role="status" aria-live="polite"></div>
 
 <!-- NOTIFICATION SETUP MODAL -->
 <div id="notifModal" onclick="closeNotifModal(event)">
-  <div class="nSheet" id="nSheet">
+  <div class="nSheet" id="nSheet" role="dialog" aria-modal="true" aria-labelledby="nModalTitle">
     <div class="nSheetTitle" id="nModalTitle">NOTIFICATIONS</div>
     <div class="nSheetSub"   id="nModalSub">Follow the steps below for your browser.</div>
     <div id="nModalBody"></div>
@@ -652,14 +909,14 @@
 (function(){
   const t = localStorage.getItem('pomo_theme') || 'dark';
   document.documentElement.setAttribute('data-theme', t);
-  document.getElementById('themeColorMeta').content = t==='light' ? '#fefae0' : '#07091a';
+  document.getElementById('themeColorMeta').content = t==='light' ? '#fefae0' : '#0c0f1f';
 })();
 
 function toggleTheme(){
   const cur  = document.documentElement.getAttribute('data-theme');
   const next = cur==='dark' ? 'light' : 'dark';
   document.documentElement.setAttribute('data-theme', next);
-  document.getElementById('themeColorMeta').content = next==='light' ? '#fefae0' : '#07091a';
+  document.getElementById('themeColorMeta').content = next==='light' ? '#fefae0' : '#0c0f1f';
   localStorage.setItem('pomo_theme', next);
   showToast(next==='light' ? 'Light theme' : 'Dark theme');
   updateAccent();
@@ -675,7 +932,7 @@ function getPhaseColors(){
   /* Single accent for every phase — the phase is named in the timer caption instead of colour-coded. */
   const L = document.documentElement.getAttribute('data-theme')==='light';
   const a = L ? {a:'#b07030',g:'rgba(176,112,48,.32)',d:'rgba(176,112,48,.14)'}
-              : {a:'#ff6b6b',g:'rgba(255,107,107,.35)',d:'rgba(255,107,107,.12)'};
+              : {a:'#f2b45a',g:'rgba(242,180,90,.32)',d:'rgba(242,180,90,.12)'};
   return { pomodoro:a, shortBreak:a, longBreak:a };
 }
 
@@ -694,7 +951,7 @@ const DEF_STATE = {
 };
 
 let settings={...DEF_SETTINGS}, state={...DEF_STATE}, history={};
-const BUILD_NUM = 13;                                // bump on every release; shown in Settings and used for the update check
+const BUILD_NUM = 19;                                // bump on every release; shown in Settings and used for the update check
 const _ls = { meta:0, pos:0, err:'', last:'' };   // lock-screen update counters (shown in Settings)
 let audioCtx=null, tickId=null, silentNode=null, silentAudioEl=null, mediaHeartbeat=null;
 let bgAudio=null;  // background music <audio> element (see CUSTOM AUDIO)
@@ -871,7 +1128,12 @@ function advancePhase(){
 }
 
 /* ─── HISTORY ─── */
-function todayKey(){ return new Date().toISOString().slice(0,10); }
+/* Day keys use the device's LOCAL calendar date (YYYY-MM-DD).
+   Before build 19 they used the UTC date (toISOString), so in time zones ahead of UTC
+   (India, Australia…) early-morning sessions were filed under the previous day,
+   and behind UTC (Americas) late-evening ones under the next day. */
+function dayKey(d){ d=d||new Date(); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
+function todayKey(){ return dayKey(new Date()); }
 function recordPomo(){
   const k=todayKey();
   history[k]=(history[k]||0)+1;
@@ -893,10 +1155,11 @@ function adjustToday(delta){
   showToast((delta > 0 ? '+1' : '\u22121') + ' \u00b7 Today: ' + next);
 }
 function getStreak(){
-  let n=0;
+  let n=0; const d=new Date();
   for(let i=0;i<365;i++){
-    const k=new Date(Date.now()-i*86400000).toISOString().slice(0,10);
+    const k=dayKey(d);            /* step by calendar day, so daylight-saving changes can't skip or repeat a date */
     if(history[k]>0) n++; else break;
+    d.setDate(d.getDate()-1);
   }
   return n;
 }
@@ -905,7 +1168,7 @@ function getWeekData(off=0){
   const mon=new Date(today); mon.setDate(today.getDate()-(dow===0?6:dow-1)+off*7);
   return Array.from({length:7},(_,i)=>{
     const d=new Date(mon); d.setDate(mon.getDate()+i);
-    const k=d.toISOString().slice(0,10);
+    const k=dayKey(d);
     return{date:d,key:k,count:history[k]||0,label:['Mo','Tu','We','Th','Fr','Sa','Su'][i],isToday:k===todayKey()};
   });
 }
@@ -920,13 +1183,29 @@ function updateTimerDisplay(){
   const ms=state.remainingMs;
   const str=`${String(Math.floor(ms/60000)).padStart(2,'0')}:${String(Math.floor((ms%60000)/1000)).padStart(2,'0')}`;
   document.getElementById('timerDigits').textContent=str;
-  document.title=state.status==='running' ? `${str} — Focus` : 'Focus Timer';
+  document.title=state.status==='running' ? `${str} — Focus` : state.status==='paused' ? `Paused · ${str} — Focus` : 'Focus Timer';
+  /* expose status/phase to CSS (paused breathing, chip style) — guarded so we don't touch the DOM 4×/sec */
+  const b=document.body; if(b){ if(b.dataset.status!==state.status) b.dataset.status=state.status; if(b.dataset.phase!==state.phase) b.dataset.phase=state.phase; }
   const total=state.phaseDurationMs||getPhaseDur()||1;
   const rp=document.getElementById('ringProg');
   rp.style.strokeDasharray=CIRC;
   rp.style.strokeDashoffset=CIRC*(1-ms/total);
   const subs={idle:{pomodoro:'READY TO FOCUS',shortBreak:'READY TO BREAK',longBreak:'READY TO REST'},running:{pomodoro:'DEEP FOCUS',shortBreak:'SHORT BREAK',longBreak:'LONG BREAK'},paused:{pomodoro:'PAUSED',shortBreak:'PAUSED',longBreak:'PAUSED'}};
   document.getElementById('timerSub').textContent=(subs[state.status]||subs.idle)[state.phase]||'';
+  renderCycleDots();
+}
+/* Dots under the caption: pomodoros done in this cycle before the long break */
+let _cycleKey='';
+function renderCycleDots(){
+  const el=document.getElementById('cycleDots'); if(!el) return;
+  const per=Math.max(1,Math.min(10,settings.pomodorosPerCycle|0));
+  const done=state.phase==='longBreak' ? per : Math.min(per, state.cycleCount|0);
+  const cur=state.phase==='pomodoro' ? done : -1;
+  const key=per+'|'+done+'|'+cur;
+  if(key===_cycleKey) return; _cycleKey=key;
+  let h=''; for(let i=0;i<per;i++) h+='<span class="cDot'+(i<done?' done':'')+(i===cur?' cur':'')+'"></span>';
+  el.innerHTML=h;
+  el.setAttribute('aria-label', state.phase==='pomodoro' ? ('Pomodoro '+Math.min(done+1,per)+' of '+per+' before long break') : (done+' of '+per+' pomodoros done this cycle'));
 }
 function updateControlUI(){
   var el = document.getElementById('mainBtnIcon');
@@ -951,35 +1230,139 @@ function renderGoalBar(){
   const cnt=history[todayKey()]||0, goal=settings.dailyGoal;
   document.getElementById('goalCurrent').textContent=cnt;
   document.getElementById('goalTarget').textContent=goal;
+  const tl=document.getElementById('todayLine');
+  if(tl){ tl.style.setProperty('--goal', goal>0 ? Math.min(1,cnt/goal) : 0); tl.classList.toggle('met', goal>0 && cnt>=goal); }
 }
 function renderStats(){
   const t=document.getElementById('stToday'), st=document.getElementById('stStreak');
-  if(t)  t.textContent = history[todayKey()]||0;
-  if(st) st.textContent = getStreak();
+  const today=history[todayKey()]||0, streak=getStreak();
+  if(t)  t.textContent = today;
+  if(st) st.textContent = streak;
+  try{ renderStatsExtras(today, streak); }catch(e){ console.warn('[stats] extras failed', e); }
+}
+
+/* ─── STATS v2 helpers (read-only: they never change history or settings) ─── */
+const HR_CIRC = 2*Math.PI*52, HM_WEEKS = 15;
+function validDayKeys(){ return Object.keys(history).filter(k=>/^\d{4}-\d{2}-\d{2}$/.test(k) && history[k]>0); }
+function getBestStreak(){
+  let best=0, run=0, prev=null;
+  validDayKeys().sort().forEach(k=>{
+    const ts=Date.parse(k+'T00:00:00Z');
+    run = (prev!==null && ts-prev===86400000) ? run+1 : 1;
+    prev=ts; if(run>best) best=run;
+  });
+  return best;
+}
+function fmtDur(min){ min=Math.round(min); const h=Math.floor(min/60), m=min%60; return h ? (m ? h+'h '+m+'m' : h+'h') : m+'m'; }
+function plural(n,w){ return n+' '+w+(n===1?'':'s'); }
+function setTxt(id,v){ const el=document.getElementById(id); if(el) el.textContent=v; return el; }
+
+function renderStatsExtras(today, streak){
+  const goal=Math.max(1, settings.dailyGoal|0 || 8), dur=settings.pomodoroDuration||25;
+
+  /* Today hero ring */
+  const pct=Math.min(1, today/goal), met=today>=goal;
+  const rp=document.getElementById('hrProg');
+  if(rp){ rp.style.strokeDasharray=HR_CIRC; rp.style.strokeDashoffset=HR_CIRC*(1-pct); }
+  setTxt('stGoalOf', 'of '+goal);
+  const msg = today===0 ? plural(goal,'pomodoro')+' to reach today’s goal'
+            : !met      ? (goal-today)+' more to reach your goal · '+fmtDur(today*dur)+' focused'
+            : today===goal ? 'Goal reached — nice work · '+fmtDur(today*dur)
+            : 'Goal reached · +'+(today-goal)+' extra · '+fmtDur(today*dur);
+  setTxt('stTodayMsg', msg);
+  const hero=document.getElementById('stHero'); if(hero) hero.classList.toggle('met', met);
+  const ring=document.getElementById('heroRing'); if(ring) ring.setAttribute('aria-label', today+' of '+goal+' pomodoros today');
+
+  /* Streak */
+  const best=Math.max(getBestStreak(), streak);
+  const bEl=setTxt('stBest', streak>0 && streak===best && best>1 ? 'Personal best!' : 'Best '+plural(best,'day'));
+  if(bEl) bEl.className='tSub'+(streak>0 && streak===best && best>1 ? ' best' : '');
+
+  /* This week vs same days last week */
+  const wk=getWeekData(0), lw=getWeekData(-1);
+  const ti=Math.max(0, wk.findIndex(d=>d.isToday));
+  const wTot=wk.reduce((a,d)=>a+d.count,0);
+  const lSame=lw.slice(0,ti+1).reduce((a,d)=>a+d.count,0);
+  setTxt('stWeek', wTot);
+  const diff=wTot-lSame;
+  const dEl=setTxt('stWeekDelta', (wTot===0 && lSame===0) ? 'No sessions yet' : diff>0 ? '↑ '+diff+' vs last week' : diff<0 ? '↓ '+(-diff)+' vs last week' : 'Same as last week');
+  if(dEl) dEl.className='tSub'+(diff>0?' up':'');
+
+  /* Focus time + all time */
+  setTxt('stFocus', fmtDur(wTot*dur));
+  const keys=validDayKeys();
+  setTxt('stTotal', keys.reduce((a,k)=>a+(history[k]|0),0));
+  setTxt('stActive', plural(keys.length,'active day'));
+
+  renderHeatmap(goal);
+}
+
+function renderHeatmap(goal){
+  const box=document.getElementById('heatmap'); if(!box) return;
+  const weeks=[]; for(let o=-(HM_WEEKS-1); o<=0; o++) weeks.push(getWeekData(o));
+  const tk=todayKey(); let active=0;
+  const lvl=n=> n<=0 ? 0 : n>=goal ? 4 : n/goal<.34 ? 1 : n/goal<.67 ? 2 : 3;
+  let h='<div class="hmGrid" style="--cols:'+HM_WEEKS+'"><span></span>';
+  let prevM=-1;
+  weeks.forEach((w,c)=>{
+    const m=w[0].date.getMonth(), nextM=weeks[c+1] ? weeks[c+1][0].date.getMonth() : m;
+    const show = m!==prevM && !(c===0 && nextM!==m);
+    h+='<span class="hmMon">'+(show ? w[0].date.toLocaleDateString('en',{month:'short'}) : '')+'</span>';
+    prevM=m;
+  });
+  const rowLbl=['Mon','','Wed','','Fri','',''];
+  for(let r=0;r<7;r++){
+    h+='<span class="hmRow">'+rowLbl[r]+'</span>';
+    weeks.forEach(w=>{
+      const d=w[r];
+      if(d.key>tk){ h+='<i class="hm fut"></i>'; return; }
+      if(d.count>0) active++;
+      h+='<i class="hm l'+lvl(d.count)+(d.key===tk?' today':'')+'" data-k="'+d.key+'" data-n="'+d.count+'" title="'+fmt(d.date)+': '+plural(d.count,'pomodoro')+'"></i>';
+    });
+  }
+  box.innerHTML=h+'</div>';
+  box.onclick=function(e){
+    const c=e.target.closest && e.target.closest('.hm[data-k]'); if(!c) return;
+    const d=new Date(c.dataset.k+'T12:00:00');
+    showToast(d.toLocaleDateString('en',{weekday:'short',month:'short',day:'numeric'})+' · '+plural(+c.dataset.n,'pomodoro'));
+  };
+  setTxt('hmMeta', plural(active,'active day')+' · last '+HM_WEEKS+' weeks');
 }
 
 /* ─── CALENDAR ─── */
-function calNav(d){ calOffset+=d; renderCalendar(); }
+function calNav(d){ calOffset=Math.min(0, calOffset+d); renderCalendar(); }
 function renderCalendar(){ const g=document.getElementById('calGrid'); if(!g) return; g.innerHTML=''; renderWeekCal(g); }
 
 function renderWeekCal(g){
-  const days=getWeekData(calOffset), mx=Math.max(1,...days.map(d=>d.count));
-  document.getElementById('calTitle').textContent=`${fmt(days[0].date)} – ${fmt(days[6].date)}`;
-  const wg=document.createElement('div'); wg.className='weekGrid';
+  const days=getWeekData(calOffset), goal=Math.max(1, settings.dailyGoal|0 || 8), tk=todayKey();
+  const mx=Math.max(1, goal, ...days.map(d=>d.count)), PLOT=g.closest('.calBlock') && window.matchMedia('(min-width:700px)').matches ? 142 : 114;
+  const range=`${fmt(days[0].date)} – ${fmt(days[6].date)}`;
+  document.getElementById('calTitle').textContent = calOffset===0 ? 'This week' : calOffset===-1 ? 'Last week' : range;
+  const total=days.reduce((a,d)=>a+d.count,0);
+  const elapsed=days.filter(d=>d.key<=tk).length;
+  const sum=document.getElementById('calSum');
+  if(sum) sum.textContent = range+' · '+plural(total,'pomodoro')+(elapsed ? ' · '+(total/elapsed).toFixed(1)+'/day' : '');
+  const nx=document.getElementById('calNext'); if(nx) nx.disabled = calOffset>=0;
+
+  let bars='', labels='';
   days.forEach(day=>{
-    const bh=day.count>0?Math.max(6,day.count/mx*64):2;
-    const col=document.createElement('div'); col.className='wCol'+(day.isToday?' today':'');
-    col.innerHTML=`<div class="wDay">${day.label}</div><div class="wBarWrap" title="${day.count} pomodoro${day.count===1?'':'s'}"><div class="wBar${day.isToday?' today':''}" style="height:${bh}px"></div></div><div class="wCount">${day.count}</div><div class="wDate">${day.date.getDate()}</div>`;
-    wg.appendChild(col);
+    const fut=day.key>tk, met=day.count>=goal;
+    const bh=day.count>0 ? Math.max(6, day.count/mx*PLOT) : 3;
+    const cls='wBar'+(day.count===0?' zero':'')+(met&&day.count>0?' met':'')+(day.isToday?' today':'')+(fut?' fut':'');
+    bars+=`<div class="wBarWrap" title="${plural(day.count,'pomodoro')}">`+
+          (day.count>0 ? `<span class="wCount${met?' met':''}">${day.count}</span>` : '')+
+          `<div class="${cls}" style="height:${bh}px"></div></div>`;
+    labels+=`<div class="wLab${day.isToday?' today':''}"><div class="wDay">${day.label}</div><div class="wDate">${day.date.getDate()}</div></div>`;
   });
-  g.appendChild(wg);
+  const gy=Math.round(goal/mx*PLOT);
+  g.innerHTML=`<div class="wPlot"><div class="wGoal" style="bottom:${gy}px"><span>Goal ${goal}</span></div><div class="wBars">${bars}</div></div><div class="wLabels">${labels}</div>`;
 }
 function fmt(d){ return d.toLocaleDateString('en',{month:'short',day:'numeric'}); }
 
 /* ─── SETTINGS UI ─── */
 const SLimits={pomodoroDuration:[1,90],shortBreakDuration:[1,30],longBreakDuration:[5,60],pomodorosPerCycle:[1,10],dailyGoal:[1,20]};
 const SSuf={pomodoroDuration:'m',shortBreakDuration:'m',longBreakDuration:'m',pomodorosPerCycle:'',dailyGoal:''};
-function adj(k,d){ const [mn,mx]=SLimits[k]||[1,99]; settings[k]=Math.max(mn,Math.min(mx,settings[k]+d)); const el=document.getElementById('sv_'+k); if(el) el.textContent=settings[k]+(SSuf[k]||''); saveSettings(); }
+function adj(k,d){ const [mn,mx]=SLimits[k]||[1,99]; settings[k]=Math.max(mn,Math.min(mx,settings[k]+d)); const el=document.getElementById('sv_'+k); if(el) el.textContent=settings[k]+(SSuf[k]||''); saveSettings(); if(k==='pomodorosPerCycle') renderCycleDots(); }
 function togSetting(k,id){ settings[k]=!settings[k]; const el=document.getElementById(id); if(el) settings[k]?el.classList.add('on'):el.classList.remove('on'); saveSettings(); if(k==='lockScreen') updateMediaSession(); }
 function renderSettingsUI(){
   Object.keys(SSuf).forEach(k=>{ const el=document.getElementById('sv_'+k); if(el) el.textContent=settings[k]+(SSuf[k]||''); });
@@ -1005,7 +1388,7 @@ function checkForUpdate(){
       const bar = document.createElement('button');
       bar.id = 'updateBar';
       bar.textContent = 'Update available — tap to update';
-      bar.style.cssText = 'position:fixed;top:0;left:0;right:0;z-index:400;padding:calc(10px + env(safe-area-inset-top)) 12px 10px;border:0;background:var(--accent);color:#fff;font:600 13px var(--font-ui);cursor:pointer';
+      bar.style.cssText = 'position:fixed;top:0;left:0;right:0;z-index:400;padding:calc(10px + env(safe-area-inset-top)) 12px 10px;border:0;background:var(--accent);color:var(--on-accent,#fff);font:600 13px var(--font-ui);cursor:pointer';
       bar.onclick = function(){ location.href = location.pathname + '?v=' + m[1]; };
       document.body.appendChild(bar);
     }).catch(function(){});
@@ -1021,7 +1404,7 @@ function renderBuildTag(){
 }
 function renderBuildStamp(){
   const el = document.getElementById('buildStamp'); if(!el) return;
-  el.textContent = 'Build 2026-11-20 · audio-v' + BUILD_NUM + ' · lock screen: title ' + _ls.meta + ', timer ' + _ls.pos + (_ls.last ? ' (' + _ls.last + ')' : '') + (_ls.err ? ' · ' + _ls.err : '');
+  el.textContent = 'Build 2026-11-22 · audio-v' + BUILD_NUM + ' · lock screen: title ' + _ls.meta + ', timer ' + _ls.pos + (_ls.last ? ' (' + _ls.last + ')' : '') + (_ls.err ? ' · ' + _ls.err : '');
 }
 function syncSoundToggle(){
   const t=document.getElementById('tog_soundEnabled');
@@ -2674,6 +3057,8 @@ function showDoneOverlay(){
   else if(state.phase==='shortBreak'){ document.getElementById('doneIcon').textContent='☕';document.getElementById('doneTitle').textContent='BREAK OVER!';document.getElementById('doneMsg').textContent='Refreshed? Back to focus!';document.getElementById('nextLbl').textContent='Start Focus'; }
   else{ document.getElementById('doneIcon').textContent='🛌';document.getElementById('doneTitle').textContent='LONG BREAK OVER!';document.getElementById('doneMsg').textContent='Full cycle done! Ready for another?';document.getElementById('nextLbl').textContent='New Cycle'; }
   document.getElementById('doneOverlay').classList.add('show');
+  /* move focus to the main action so Enter/Space continues (keyboard & screen readers) */
+  setTimeout(function(){ const b=document.querySelector('#doneOverlay .doneBtnPri'); if(b) try{ b.focus({preventScroll:true}); }catch(e){} },60);
 }
 function dismissDone(andStart){ document.getElementById('doneOverlay').classList.remove('show'); advancePhase(); updateTimerDisplay(); updateControlUI(); updateAccent(); if(andStart) setTimeout(startTimer,300); }
 
@@ -2698,7 +3083,7 @@ const QUOTES=['"The secret of getting ahead is getting started." — Mark Twain'
 function cycleQuotes(){ const el=document.getElementById('quoteText'); if(!el) return; el.style.opacity='0';setTimeout(()=>{el.textContent=QUOTES[Math.floor(Math.random()*QUOTES.length)];el.style.opacity='1';},500);setTimeout(cycleQuotes,12*60*1000); }
 
 /* ─── PWA MANIFEST ─── */
-function injectManifest(){ const m={name:'Focus — Pomodoro Timer',short_name:'Focus',description:'Premium Pomodoro timer',start_url:'./',display:'standalone',background_color:'#07091a',theme_color:'#07091a',orientation:'portrait-primary',categories:['productivity'],icons:[{src:`data:image/svg+xml,${encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 192 192"><rect width="192" height="192" rx="40" fill="#07091a"/><text y="140" x="96" font-size="130" text-anchor="middle">🍅</text></svg>')}`,sizes:'192x192',type:'image/svg+xml',purpose:'any maskable'}]};const blob=new Blob([JSON.stringify(m)],{type:'application/json'});const link=document.createElement('link');link.rel='manifest';link.href=URL.createObjectURL(blob);document.head.appendChild(link); }
+function injectManifest(){ const m={name:'Focus — Pomodoro Timer',short_name:'Focus',description:'Premium Pomodoro timer',start_url:'./',display:'standalone',background_color:'#0c0f1f',theme_color:'#0c0f1f',orientation:'portrait-primary',categories:['productivity'],icons:[{src:`data:image/svg+xml,${encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 192 192"><rect width="192" height="192" rx="40" fill="#07091a"/><text y="140" x="96" font-size="130" text-anchor="middle">🍅</text></svg>')}`,sizes:'192x192',type:'image/svg+xml',purpose:'any maskable'}]};const blob=new Blob([JSON.stringify(m)],{type:'application/json'});const link=document.createElement('link');link.rel='manifest';link.href=URL.createObjectURL(blob);document.head.appendChild(link); }
 
 
 /* ════════════════════════════════════════════════════════════════════
@@ -3296,6 +3681,67 @@ function renderLockScreenNote(){
   }
 }
 
+/* ══════════════════════════════════════════════════════════════════
+   UI ENHANCEMENTS — keyboard shortcuts + accessible switches/steppers.
+   Only calls the same functions the on-screen buttons already call.
+══════════════════════════════════════════════════════════════════ */
+function enhanceUI(){
+  /* Toggles are <div>s: give them switch semantics, focus and keyboard support */
+  document.querySelectorAll('.tog').forEach(function(el){
+    if(!el.hasAttribute('role')) el.setAttribute('role','switch');
+    if(!el.hasAttribute('tabindex')) el.tabIndex = 0;
+    if(!el.hasAttribute('aria-label')){
+      const row = el.closest('.sRow'), lbl = row && row.querySelector('.sLabel');
+      if(lbl) el.setAttribute('aria-label', lbl.textContent.trim());
+    }
+    const sync = function(){ el.setAttribute('aria-checked', el.classList.contains('on') ? 'true' : 'false'); };
+    sync();
+    if('MutationObserver' in window) new MutationObserver(sync).observe(el, { attributes:true, attributeFilter:['class'] });
+    el.addEventListener('keydown', function(e){ if(e.key === 'Enter' || e.key === ' '){ e.preventDefault(); el.click(); } });
+  });
+  /* Stepper − / + buttons: name them for screen readers, announce the new value */
+  document.querySelectorAll('.stepper').forEach(function(st){
+    const row = st.closest('.sRow'), lbl = row && row.querySelector('.sLabel');
+    const name = lbl ? lbl.textContent.trim() : 'value';
+    const btns = st.querySelectorAll('.stepBtn');
+    if(btns[0] && !btns[0].hasAttribute('aria-label')) btns[0].setAttribute('aria-label', 'Decrease ' + name);
+    if(btns[1] && !btns[1].hasAttribute('aria-label')) btns[1].setAttribute('aria-label', 'Increase ' + name);
+    const v = st.querySelector('.stepVal'); if(v) v.setAttribute('aria-live', 'polite');
+  });
+  /* After a mouse click on tabs / timer buttons, drop focus so Space goes to start/pause */
+  document.addEventListener('pointerup', function(e){
+    if(e.pointerType !== 'mouse') return;
+    const b = e.target && e.target.closest && e.target.closest('.tab, .ctrlBtn');
+    if(b) setTimeout(function(){ b.blur(); }, 0);
+  });
+}
+document.addEventListener('keydown', function(e){
+  if(e.defaultPrevented || e.ctrlKey || e.metaKey || e.altKey) return;
+  const modal = document.getElementById('notifModal'), done = document.getElementById('doneOverlay');
+  const modalOpen = modal && modal.classList.contains('show'), doneOpen = done && done.classList.contains('show');
+  if(e.key === 'Escape'){
+    if(modalOpen){ e.preventDefault(); closeNotifModal(); }
+    else if(doneOpen){ e.preventDefault(); dismissDone(false); }
+    return;
+  }
+  if(modalOpen || doneOpen || e.repeat) return;
+  const t = e.target;
+  if(t && t.closest && t.closest('input, select, textarea, button, summary, a, label, [role=button], [role=switch], [contenteditable=""], [contenteditable="true"]')) return;
+  const tv = document.getElementById('timerView');
+  if(!tv || !tv.classList.contains('active')) return;
+  const k = (e.key || '').toLowerCase();
+  if(k === ' ' || e.code === 'Space'){ e.preventDefault(); toggleTimer(); }
+  else if(k === 'r'){ e.preventDefault(); resetTimer(); }
+  else if(k === 's'){ e.preventDefault(); skipPhase(); }
+});
+/* If the app is left open past midnight, roll today's numbers over to the new day */
+let _lastDayKey=null;
+setInterval(function(){
+  const k=todayKey();
+  if(_lastDayKey===null){ _lastDayKey=k; return; }
+  if(k!==_lastDayKey){ _lastDayKey=k; try{ renderGoalBar(); renderStats(); renderCalendar(); }catch(e){} }
+}, 30000);
+document.addEventListener('DOMContentLoaded', enhanceUI);
 document.addEventListener('DOMContentLoaded', init);
 </script>
 </body>
